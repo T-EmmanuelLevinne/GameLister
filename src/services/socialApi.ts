@@ -4,7 +4,8 @@ import type {
   FriendsOverview,
   GameId,
   NotificationItem,
-  PlayerSearchResult
+  PlayerSearchResult,
+  SidebarFavoriteFriend
 } from '../types/platform.js';
 
 const getLocalHost = () => {
@@ -87,6 +88,61 @@ export class SocialApi {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to load friends.');
     return data as FriendsOverview;
+  }
+
+  public static async getSidebarFavoriteFriends(): Promise<{
+    favoriteFriends: SidebarFavoriteFriend[];
+    maxFavoriteFriends: number;
+  }> {
+    const token = this.requireToken();
+    const res = await fetch(`${SOCIAL_API_BASE}/api/friends/sidebar`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store'
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load favorite friends.');
+    return {
+      favoriteFriends: (data.favoriteFriends || []) as SidebarFavoriteFriend[],
+      maxFavoriteFriends: typeof data.maxFavoriteFriends === 'number' ? data.maxFavoriteFriends : 5
+    };
+  }
+
+  public static async addFavoriteFriend(
+    friendId: string
+  ): Promise<{ favoriteFriends: SidebarFavoriteFriend[]; maxFavoriteFriends: number }> {
+    const token = this.requireToken();
+    const res = await fetch(
+      `${SOCIAL_API_BASE}/api/friends/${encodeURIComponent(friendId)}/favorite`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to favorite friend.');
+    return {
+      favoriteFriends: (data.favoriteFriends || []) as SidebarFavoriteFriend[],
+      maxFavoriteFriends: typeof data.maxFavoriteFriends === 'number' ? data.maxFavoriteFriends : 5
+    };
+  }
+
+  public static async removeFavoriteFriend(
+    friendId: string
+  ): Promise<{ favoriteFriends: SidebarFavoriteFriend[]; maxFavoriteFriends: number }> {
+    const token = this.requireToken();
+    const res = await fetch(
+      `${SOCIAL_API_BASE}/api/friends/${encodeURIComponent(friendId)}/favorite`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to remove favorite friend.');
+    return {
+      favoriteFriends: (data.favoriteFriends || []) as SidebarFavoriteFriend[],
+      maxFavoriteFriends: typeof data.maxFavoriteFriends === 'number' ? data.maxFavoriteFriends : 5
+    };
   }
 
   public static async searchPlayers(query: string): Promise<PlayerSearchResult[]> {
@@ -183,7 +239,11 @@ export class SocialApi {
         }
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to send message.');
+      if (!res.ok) {
+        const err = new Error(data.error || 'Failed to send message.') as Error & { status?: number };
+        err.status = res.status;
+        throw err;
+      }
       return data;
     } catch (err: any) {
       if (err?.name === 'AbortError') {
@@ -246,5 +306,25 @@ export class SocialApi {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to mark all notifications read.');
     return typeof data.unreadCount === 'number' ? data.unreadCount : 0;
+  }
+
+  public static async deleteNotifications(
+    notificationIds: string[]
+  ): Promise<{ deletedCount: number; unreadCount: number }> {
+    const token = this.requireToken();
+    const res = await fetch(`${SOCIAL_API_BASE}/api/notifications/delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ notificationIds })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete notifications.');
+    return {
+      deletedCount: typeof data.deletedCount === 'number' ? data.deletedCount : 0,
+      unreadCount: typeof data.unreadCount === 'number' ? data.unreadCount : 0
+    };
   }
 }

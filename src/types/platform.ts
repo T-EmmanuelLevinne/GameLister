@@ -83,8 +83,20 @@ export interface FriendEntry {
   username: string;
   isAdmin: boolean;
   isOnline: boolean;
+  playingGameId: string | null;
+  playingGameName: string | null;
+  isFavorite: boolean;
+  unreadCount: number;
   lastSeenAt: string | null;
   since: string;
+}
+
+export interface SidebarFavoriteFriend {
+  userId: string;
+  username: string;
+  isOnline: boolean;
+  playingGameName: string | null;
+  unreadCount: number;
 }
 
 export interface FriendRequestEntry {
@@ -93,6 +105,8 @@ export interface FriendRequestEntry {
   username: string;
   isAdmin: boolean;
   isOnline: boolean;
+  playingGameId: string | null;
+  playingGameName: string | null;
   createdAt: string;
 }
 
@@ -101,6 +115,7 @@ export interface FriendsOverview {
   incomingRequests: FriendRequestEntry[];
   outgoingRequests: FriendRequestEntry[];
   maxFriends: number;
+  maxFavoriteFriends?: number;
 }
 
 export interface PlayerSearchResult {
@@ -108,6 +123,8 @@ export interface PlayerSearchResult {
   username: string;
   isAdmin: boolean;
   isOnline: boolean;
+  playingGameId: string | null;
+  playingGameName: string | null;
   relationship: RelationshipStatus;
   friendshipId: string | null;
 }

@@ -93,7 +93,7 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
 
     setLaunchingGameId(game.id);
     try {
-      const ssoCode = await PlatformAuthApi.createSsoCode();
+      const ssoCode = await PlatformAuthApi.createSsoCode(game.id);
       const separator = game.frontendUrl.includes('?') ? '&' : '?';
       window.location.href = `${game.frontendUrl}${separator}sso=${encodeURIComponent(ssoCode)}`;
     } catch (err: unknown) {

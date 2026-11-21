@@ -1,4 +1,4 @@
-import type { PlayerProfile, GameServerTelemetry } from '../types/platform.js';
+import type { PlayerProfile, GameId, GameServerTelemetry } from '../types/platform.js';
 
 const getLocalHost = () => {
   if (typeof window !== 'undefined' && window.location.hostname) {
@@ -155,15 +155,17 @@ export class PlatformAuthApi {
    * Request a short-lived single-use SSO handoff code so launching a game
    * immediately authenticates the player on that game's origin without a second login.
    */
-  public static async createSsoCode(): Promise<string> {
+  public static async createSsoCode(gameId?: GameId): Promise<string> {
     const token = this.getToken();
     if (!token) throw new Error('Not authenticated');
 
     const res = await fetch(`${AUTH_API_BASE}/api/auth/sso-code`, {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
-      }
+      },
+      body: JSON.stringify(gameId ? { gameId } : {})
     });
     const data = await res.json();
     if (!res.ok || !data.code) {

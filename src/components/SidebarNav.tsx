@@ -11,7 +11,7 @@ import {
   X,
   Shield
 } from 'lucide-react';
-import type { HubPage, PlayerProfile } from '../types/platform.js';
+import type { HubPage, PlayerProfile, SidebarFavoriteFriend } from '../types/platform.js';
 import { MarbleBrandMark } from './GameArtwork.js';
 import { ThemeToggle } from './ThemeToggle.js';
 
@@ -20,8 +20,11 @@ interface SidebarNavProps {
   activePage: HubPage;
   favoriteCount: number;
   unreadNotifications: number;
+  favoriteFriends: SidebarFavoriteFriend[];
+  activeChatFriendId: string | null;
   isDark: boolean;
   onNavigate: (page: HubPage) => void;
+  onSelectFavoriteFriend: (friendUserId: string) => void;
   onToggleTheme: () => void;
   onOpenAccount: () => void;
   onLogout: () => void;
@@ -32,8 +35,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   activePage,
   favoriteCount,
   unreadNotifications,
+  favoriteFriends,
+  activeChatFriendId,
   isDark,
   onNavigate,
+  onSelectFavoriteFriend,
   onToggleTheme,
   onOpenAccount,
   onLogout
@@ -146,6 +152,47 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               <span>Friends</span>
             </span>
           </button>
+
+          {/* Up to 5 Favorite Friends connected via tree branch line */}
+          {favoriteFriends.length > 0 && (
+            <div className="sidebar-friends-tree" aria-label="Favorite friends">
+              {favoriteFriends.slice(0, 5).map((friend) => {
+                const isSelectedChat =
+                  activePage === 'friends' && activeChatFriendId === friend.userId;
+                return (
+                  <div key={friend.userId} className="sidebar-friend-branch">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectFavoriteFriend(friend.userId);
+                        setMobileOpen(false);
+                      }}
+                      className={`sidebar-friend-item ${isSelectedChat ? 'is-active' : ''}`}
+                      title={
+                        friend.playingGameName
+                          ? `${friend.username} — Playing ${friend.playingGameName}`
+                          : `${friend.username} (${friend.isOnline ? 'Online' : 'Offline'})`
+                      }
+                    >
+                      <span className="sidebar-friend-item__left">
+                        <span
+                          className={`sidebar-friend-dot ${
+                            friend.isOnline ? 'is-online' : 'is-offline'
+                          }`}
+                        />
+                        <span className="sidebar-friend-name">{friend.username}</span>
+                      </span>
+                      {friend.unreadCount > 0 && (
+                        <span className="sidebar-pill sidebar-pill--red">
+                          {friend.unreadCount > 99 ? '99+' : friend.unreadCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <button
             type="button"

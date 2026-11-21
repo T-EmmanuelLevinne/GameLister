@@ -259,6 +259,71 @@ body {
   overflow-x: hidden;
 }
 
+/* ==========================================================
+   CUSTOM THEMED SCROLLBARS (Light & Night Modes, All Containers)
+   ========================================================== */
+html,
+body,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #D4D4D8 #FAFAFA;
+}
+
+html.hub-scrollbar-dark,
+html.hub-scrollbar-dark body,
+[data-theme='dark'],
+[data-theme='dark'] * {
+  scrollbar-color: #27272A #09090B;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAFAFA;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4D4D8;
+  border-radius: 9999px;
+  border: 2px solid #FAFAFA;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #10B981;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html.hub-scrollbar-dark::-webkit-scrollbar-track,
+html.hub-scrollbar-dark body::-webkit-scrollbar-track,
+[data-theme='dark'] ::-webkit-scrollbar-track {
+  background: #09090B;
+}
+
+html.hub-scrollbar-dark::-webkit-scrollbar-thumb,
+html.hub-scrollbar-dark body::-webkit-scrollbar-thumb,
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #27272A;
+  border: 2px solid #09090B;
+}
+
+html.hub-scrollbar-dark::-webkit-scrollbar-thumb:hover,
+html.hub-scrollbar-dark body::-webkit-scrollbar-thumb:hover,
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: #10B981;
+}
+
 #root {
   min-height: 100vh;
   display: flex;
@@ -627,6 +692,146 @@ input {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
+}
+
+.sidebar-pill--red {
+  background: #EF4444;
+  color: #FFFFFF;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Favorite Friends Tree Under Sidebar Friends (Max 5, Geometric Connection Line) */
+.sidebar-friends-tree {
+  display: flex;
+  flex-direction: column;
+  margin-left: 18px;
+  padding-left: 14px;
+  padding-top: 2px;
+  padding-bottom: 4px;
+  position: relative;
+}
+
+.sidebar-friend-branch {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Vertical spine line connecting down from Friends */
+.sidebar-friend-branch::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: var(--border-strong);
+}
+
+/* Last child vertical spine stops at the horizontal branch (clean L-shape) */
+.sidebar-friend-branch:last-child::before {
+  bottom: 50%;
+}
+
+/* Horizontal branch tick connecting spine to friend item */
+.sidebar-friend-branch::after {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  width: 11px;
+  height: 1.5px;
+  background: var(--border-strong);
+}
+
+.sidebar-friend-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: left;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.sidebar-friend-item:hover {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+}
+
+.sidebar-friend-item.is-active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  font-weight: 700;
+}
+
+[data-theme='dark'] .sidebar-friend-item.is-active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34D399;
+}
+
+.sidebar-friend-item__left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sidebar-friend-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-friend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sidebar-friend-dot.is-online {
+  background: #10B981;
+}
+
+.sidebar-friend-dot.is-offline {
+  background: #71717A;
+}
+
+/* Yellow star button on friend rows */
+.friend-star-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.friend-star-btn:hover:not(:disabled) {
+  background: rgba(250, 204, 21, 0.14);
+  color: #EAB308;
+}
+
+.friend-star-btn.is-favorited {
+  color: #EAB308;
 }
 
 .sidebar-footer {
@@ -1785,6 +1990,34 @@ input {
   color: #10B981;
 }
 
+.friend-playing-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #10B981;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-cooldown-banner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border-top: 1px solid rgba(245, 158, 11, 0.32);
+  color: #D97706;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+[data-theme='dark'] .chat-cooldown-banner {
+  color: #FBBF24;
+}
+
 .friend-mini-btn {
   padding: 4px 8px;
   border-radius: var(--radius-sm);
@@ -2075,6 +2308,46 @@ input {
   background: #10B981;
   flex-shrink: 0;
   margin-top: 6px;
+}
+
+.notification-card.is-selectable {
+  cursor: pointer;
+  transition: border-color 0.14s ease, background-color 0.14s ease;
+}
+
+.notification-card.is-selectable:hover {
+  border-color: var(--border-strong);
+}
+
+.notification-card.is-selected {
+  border-color: #10B981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.notification-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 2px;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.notification-checkbox.is-checked {
+  color: #10B981;
+}
+
+.btn-danger-flat {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  color: #EF4444 !important;
+}
+
+.btn-danger-flat:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: #EF4444 !important;
 }
 
 @media (max-width: 860px) {

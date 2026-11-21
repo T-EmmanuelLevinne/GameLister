@@ -10,7 +10,7 @@ import { AccountModal } from './components/AccountModal.js';
 import GlowCursor from './components/GlowCursor.js';
 import { PlatformAuthApi } from './services/authApi.js';
 import { SocialApi } from './services/socialApi.js';
-import type { GameId, HubPage, PlayerProfile } from './types/platform.js';
+import type { GameId, HubPage, PlayerProfile, SidebarFavoriteFriend } from './types/platform.js';
 
 const parsePageFromPath = (pathname: string): HubPage => {
   const clean = pathname.replace(/\/+$/, '').toLowerCase();
@@ -46,6 +46,8 @@ export const App: React.FC = () => {
   const [favoriteGameIds, setFavoriteGameIds] = useState<Set<GameId>>(new Set());
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<GameId | null>(null);
   const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
+  const [sidebarFavoriteFriends, setSidebarFavoriteFriends] = useState<SidebarFavoriteFriend[]>([]);
+  const [activeChatFriendId, setActiveChatFriendId] = useState<string | null>(null);
 
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -56,6 +58,15 @@ export const App: React.FC = () => {
     delete document.documentElement.dataset.theme;
     localStorage.setItem('marble_games_theme', isDark ? 'dark' : 'light');
   }, [isDark]);
+
+  // Sync custom root browser scrollbar theme strictly for authenticated hub (never leaks onto AuthScreen)
+  useEffect(() => {
+    const useDarkScrollbar = Boolean(player && isDark);
+    document.documentElement.classList.toggle('hub-scrollbar-dark', useDarkScrollbar);
+    return () => {
+      document.documentElement.classList.remove('hub-scrollbar-dark');
+    };
+  }, [player, isDark]);
 
   // Sync lightweight URL routing with browser Back/Forward
   useEffect(() => {
@@ -76,6 +87,16 @@ export const App: React.FC = () => {
     }
   }, []);
 
+  const refreshSidebarFavoriteFriends = useCallback(async () => {
+    if (!PlatformAuthApi.getToken()) return;
+    try {
+      const data = await SocialApi.getSidebarFavoriteFriends();
+      setSidebarFavoriteFriends(data.favoriteFriends);
+    } catch {
+      // Non-blocking
+    }
+  }, []);
+
   const handleNavigate = useCallback(
     (page: HubPage) => {
       setActivePage(page);
@@ -85,8 +106,20 @@ export const App: React.FC = () => {
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       refreshUnreadCount();
+      refreshSidebarFavoriteFriends();
     },
-    [refreshUnreadCount]
+    [refreshUnreadCount, refreshSidebarFavoriteFriends]
+  );
+
+  const handleSelectFavoriteFriend = useCallback(
+    (friendUserId: string) => {
+      setActiveChatFriendId(friendUserId);
+      setSidebarFavoriteFriends((prev) =>
+        prev.map((f) => (f.userId === friendUserId ? { ...f, unreadCount: 0 } : f))
+      );
+      handleNavigate('friends');
+    },
+    [handleNavigate]
   );
 
   // Verify initial session
@@ -122,11 +155,13 @@ export const App: React.FC = () => {
     verifySession();
   }, []);
 
-  // Load favorites + unread count on login & maintain lightweight visibility-gated heartbeat (45s)
+  // Load favorites + unread count + sidebar favorite friends & maintain lightweight visibility-gated polling
   useEffect(() => {
     if (!player) {
       setFavoriteGameIds(new Set());
       setUnreadNotifications(0);
+      setSidebarFavoriteFriends([]);
+      setActiveChatFriendId(null);
       return;
     }
 
@@ -135,15 +170,25 @@ export const App: React.FC = () => {
       .catch(() => {});
 
     refreshUnreadCount();
+    refreshSidebarFavoriteFriends();
 
-    const pollInterval = setInterval(() => {
+    const notifPoll = setInterval(() => {
       if (document.visibilityState === 'visible') {
         refreshUnreadCount();
       }
     }, 45_000);
 
-    return () => clearInterval(pollInterval);
-  }, [player?.id, refreshUnreadCount]);
+    const friendsPoll = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshSidebarFavoriteFriends();
+      }
+    }, 15_000);
+
+    return () => {
+      clearInterval(notifPoll);
+      clearInterval(friendsPoll);
+    };
+  }, [player?.id, refreshUnreadCount, refreshSidebarFavoriteFriends]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -152,6 +197,7 @@ export const App: React.FC = () => {
           .then((res) => setPlayer(res.player))
           .catch(() => {});
         refreshUnreadCount();
+        refreshSidebarFavoriteFriends();
       }
     };
 
@@ -161,7 +207,7 @@ export const App: React.FC = () => {
       window.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', handleVisibility);
     };
-  }, [player, refreshUnreadCount]);
+  }, [player, refreshUnreadCount, refreshSidebarFavoriteFriends]);
 
   const handleToggleFavorite = useCallback(
     async (gameId: GameId) => {
@@ -259,8 +305,11 @@ export const App: React.FC = () => {
         activePage={activePage}
         favoriteCount={favoriteGameIds.size}
         unreadNotifications={unreadNotifications}
+        favoriteFriends={sidebarFavoriteFriends}
+        activeChatFriendId={activeChatFriendId}
         isDark={isDark}
         onNavigate={handleNavigate}
+        onSelectFavoriteFriend={handleSelectFavoriteFriend}
         onToggleTheme={() => setIsDark((prev) => !prev)}
         onOpenAccount={() => setIsAccountOpen(true)}
         onLogout={handleLogout}
@@ -278,7 +327,13 @@ export const App: React.FC = () => {
         ) : activePage === 'announcements' ? (
           <CommunityFeedView player={player} />
         ) : activePage === 'friends' ? (
-          <FriendsView player={player} onNotificationsChanged={refreshUnreadCount} />
+          <FriendsView
+            player={player}
+            initialFriendId={activeChatFriendId}
+            onActiveFriendChange={setActiveChatFriendId}
+            onSidebarFriendsChanged={refreshSidebarFavoriteFriends}
+            onNotificationsChanged={refreshUnreadCount}
+          />
         ) : activePage === 'notifications' ? (
           <NotificationsView
             onUnreadCountChange={setUnreadNotifications}

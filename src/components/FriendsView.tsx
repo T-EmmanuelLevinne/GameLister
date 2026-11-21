@@ -13,7 +13,9 @@ import {
   AlertCircle,
   UserMinus,
   RotateCcw,
-  Shield
+  Shield,
+  Gamepad2,
+  Star
 } from 'lucide-react';
 import { SocialApi } from '../services/socialApi.js';
 import type {
@@ -27,6 +29,9 @@ import type {
 
 interface FriendsViewProps {
   player: PlayerProfile;
+  initialFriendId?: string | null;
+  onActiveFriendChange?: (friendUserId: string | null) => void;
+  onSidebarFriendsChanged?: () => void;
   onNotificationsChanged?: () => void;
 }
 
@@ -38,12 +43,19 @@ const formatMessageTime = (iso: string): string => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotificationsChanged }) => {
+export const FriendsView: React.FC<FriendsViewProps> = ({
+  player,
+  initialFriendId = null,
+  onActiveFriendChange,
+  onSidebarFriendsChanged,
+  onNotificationsChanged
+}) => {
   const [overview, setOverview] = useState<FriendsOverview>({
     friends: [],
     incomingRequests: [],
     outgoingRequests: [],
-    maxFriends: 30
+    maxFriends: 30,
+    maxFavoriteFriends: 5
   });
   const [loadingFriends, setLoadingFriends] = useState<boolean>(true);
   const [refreshingFriends, setRefreshingFriends] = useState<boolean>(false);
@@ -55,18 +67,33 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
   const [searching, setSearching] = useState<boolean>(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
+  const [togglingFavUserId, setTogglingFavUserId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
 
   // Selected friend & 1-hour direct messaging panel (right side)
-  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(initialFriendId);
   const [messages, setMessages] = useState<FriendMessage[]>([]);
   const [pendingMessages, setPendingMessages] = useState<PendingFriendMessage[]>([]);
   const [loadingChat, setLoadingChat] = useState<boolean>(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [spamNotice, setSpamNotice] = useState<string | null>(null);
   const [draftMessage, setDraftMessage] = useState<string>('');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const lastSentAtRef = useRef<number>(0);
+  const spamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slowTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Sync external selection when user clicks a favorite friend in the sidebar tree
+  useEffect(() => {
+    if (initialFriendId) {
+      setSelectedFriendId(initialFriendId);
+    }
+  }, [initialFriendId]);
+
+  useEffect(() => {
+    onActiveFriendChange?.(selectedFriendId);
+  }, [selectedFriendId, onActiveFriendChange]);
 
   const loadFriends = useCallback(async (silent: boolean = false) => {
     if (!silent) setRefreshingFriends(true);
@@ -76,6 +103,9 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
       setError(null);
       setSelectedFriendId((prev) => {
         if (prev && data.friends.some((f) => f.userId === prev)) return prev;
+        if (initialFriendId && data.friends.some((f) => f.userId === initialFriendId)) {
+          return initialFriendId;
+        }
         return data.friends.length > 0 ? data.friends[0].userId : null;
       });
     } catch (err: unknown) {
@@ -86,7 +116,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
       setLoadingFriends(false);
       setRefreshingFriends(false);
     }
-  }, []);
+  }, [initialFriendId]);
 
   useEffect(() => {
     loadFriends(false);
@@ -133,34 +163,60 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
     };
   }, [searchQuery]);
 
-  // Cleanup slow-connection timers on unmount
+  // Cleanup slow-connection & cooldown timers on unmount
   useEffect(() => {
     return () => {
       for (const timer of slowTimersRef.current.values()) {
         clearTimeout(timer);
       }
       slowTimersRef.current.clear();
+      if (spamTimerRef.current) clearTimeout(spamTimerRef.current);
     };
+  }, []);
+
+  const showSpamWarning = useCallback((message: string) => {
+    setSpamNotice(message);
+    if (spamTimerRef.current) clearTimeout(spamTimerRef.current);
+    spamTimerRef.current = setTimeout(() => {
+      setSpamNotice(null);
+    }, 2600);
   }, []);
 
   const selectedFriend: FriendEntry | null =
     overview.friends.find((f) => f.userId === selectedFriendId) || null;
 
   // Fetch 1-hour conversation for selected friend & poll every 4s while visible
-  const loadConversation = useCallback(async (friendUserId: string, showSpinner: boolean) => {
-    if (showSpinner) setLoadingChat(true);
-    try {
-      const data = await SocialApi.getMessages(friendUserId);
-      setMessages(data.messages);
-      setChatError(null);
-    } catch (err: unknown) {
-      if (showSpinner) {
-        setChatError(err instanceof Error ? err.message : 'Failed to load conversation.');
+  const loadConversation = useCallback(
+    async (friendUserId: string, showSpinner: boolean) => {
+      if (showSpinner) setLoadingChat(true);
+      try {
+        const data = await SocialApi.getMessages(friendUserId);
+        setMessages(data.messages);
+        setChatError(null);
+        // Opening/reading conversation clears unread badge for this friend
+        setOverview((prev) => {
+          const target = prev.friends.find((f) => f.userId === friendUserId);
+          if (!target || target.unreadCount === 0) return prev;
+          return {
+            ...prev,
+            friends: prev.friends.map((f) =>
+              f.userId === friendUserId ? { ...f, unreadCount: 0 } : f
+            )
+          };
+        });
+        if (showSpinner) {
+          onSidebarFriendsChanged?.();
+        }
+      } catch (err: unknown) {
+        if (showSpinner) {
+          setChatError(err instanceof Error ? err.message : 'Failed to load conversation.');
+        }
+      } finally {
+        if (showSpinner) setLoadingChat(false);
       }
-    } finally {
-      if (showSpinner) setLoadingChat(false);
-    }
-  }, []);
+    },
+    [onSidebarFriendsChanged]
+  );
 
   useEffect(() => {
     if (!selectedFriendId) {
@@ -242,11 +298,37 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
         );
       }
       await loadFriends(true);
+      onSidebarFriendsChanged?.();
       onNotificationsChanged?.();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update friendship.');
     } finally {
       setBusyActionId(null);
+    }
+  };
+
+  const handleToggleFavoriteFriend = async (friend: FriendEntry) => {
+    if (togglingFavUserId) return;
+    setTogglingFavUserId(friend.userId);
+    setError(null);
+
+    try {
+      if (friend.isFavorite) {
+        await SocialApi.removeFavoriteFriend(friend.userId);
+      } else {
+        await SocialApi.addFavoriteFriend(friend.userId);
+      }
+      setOverview((prev) => ({
+        ...prev,
+        friends: prev.friends.map((f) =>
+          f.userId === friend.userId ? { ...f, isFavorite: !friend.isFavorite } : f
+        )
+      }));
+      onSidebarFriendsChanged?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update favorite friend.');
+    } finally {
+      setTogglingFavUserId(null);
     }
   };
 
@@ -298,7 +380,15 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
         clearTimeout(timer);
         slowTimersRef.current.delete(tempId);
       }
-      const msg = err instanceof Error ? err.message : 'Network error. Check your connection.';
+      const typedErr = err as Error & { status?: number };
+      const msg = typedErr?.message || 'Network error. Check your connection.';
+      if (typedErr?.status === 429 || msg.includes('Slow down')) {
+        // Rate-limited: remove optimistic bubble and display clean cooldown notice
+        setPendingMessages((prev) => prev.filter((m) => m.tempId !== tempId));
+        setDraftMessage((prev) => (prev.trim().length === 0 ? content : prev));
+        showSpamWarning(msg);
+        return;
+      }
       setPendingMessages((prev) =>
         prev.map((m) =>
           m.tempId === tempId ? { ...m, status: 'failed', errorMessage: msg, slow: false } : m
@@ -312,6 +402,15 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
     if (!selectedFriend) return;
     const cleaned = draftMessage.trim();
     if (!cleaned) return;
+
+    const now = Date.now();
+    if (now - lastSentAtRef.current < 1500) {
+      showSpamWarning('Slow down a moment before sending another message.');
+      return;
+    }
+
+    lastSentAtRef.current = now;
+    setSpamNotice(null);
     setDraftMessage('');
     transmitMessage(selectedFriend.userId, cleaned);
   };
@@ -344,9 +443,16 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
           </div>
           <div className="friend-row__info">
             <span className="friend-row__name">{friend.username}</span>
-            <span className={`friend-row__status ${friend.isOnline ? 'is-online' : ''}`}>
-              {friend.isOnline ? 'Online' : 'Offline'}
-            </span>
+            {friend.playingGameName ? (
+              <span className="friend-playing-status">
+                <Gamepad2 size={11} />
+                <span>Playing {friend.playingGameName}</span>
+              </span>
+            ) : (
+              <span className={`friend-row__status ${friend.isOnline ? 'is-online' : ''}`}>
+                {friend.isOnline ? 'Online' : 'Offline'}
+              </span>
+            )}
           </div>
         </button>
 
@@ -371,15 +477,45 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmRemoveId(friend.friendshipId)}
-            className="community-icon-btn"
-            title={`Remove ${friend.username}`}
-            aria-label={`Remove ${friend.username}`}
-          >
-            <UserMinus size={14} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            {!isSelected && friend.unreadCount > 0 && (
+              <span className="sidebar-pill sidebar-pill--red" title={`${friend.unreadCount} unread message(s)`}>
+                {friend.unreadCount > 99 ? '99+' : friend.unreadCount}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => handleToggleFavoriteFriend(friend)}
+              disabled={togglingFavUserId === friend.userId}
+              className={`friend-star-btn ${friend.isFavorite ? 'is-favorited' : ''}`}
+              title={
+                friend.isFavorite
+                  ? 'Unpin from sidebar Friends'
+                  : 'Pin to sidebar Friends (max 5)'
+              }
+              aria-label={
+                friend.isFavorite
+                  ? `Unfavorite ${friend.username}`
+                  : `Favorite ${friend.username}`
+              }
+              aria-pressed={friend.isFavorite}
+            >
+              <Star
+                size={14}
+                color={friend.isFavorite ? '#EAB308' : 'currentColor'}
+                fill={friend.isFavorite ? '#FACC15' : 'none'}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmRemoveId(friend.friendshipId)}
+              className="community-icon-btn"
+              title={`Remove ${friend.username}`}
+              aria-label={`Remove ${friend.username}`}
+            >
+              <UserMinus size={14} />
+            </button>
+          </div>
         )}
       </div>
     );
@@ -483,9 +619,16 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: result.isOnline ? '#10B981' : 'var(--text-muted)' }}>
-                        {result.isOnline ? 'Online' : 'Offline'}
-                      </div>
+                      {result.playingGameName ? (
+                        <div className="friend-playing-status">
+                          <Gamepad2 size={11} />
+                          <span>Playing {result.playingGameName}</span>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.72rem', color: result.isOnline ? '#10B981' : 'var(--text-muted)' }}>
+                          {result.isOnline ? 'Online' : 'Offline'}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -751,15 +894,22 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
                       <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                         {selectedFriend.username}
                       </div>
-                      <div
-                        style={{
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          color: selectedFriend.isOnline ? '#10B981' : 'var(--text-muted)'
-                        }}
-                      >
-                        {selectedFriend.isOnline ? 'Online' : 'Offline'}
-                      </div>
+                      {selectedFriend.playingGameName ? (
+                        <div className="friend-playing-status">
+                          <Gamepad2 size={11} />
+                          <span>Playing {selectedFriend.playingGameName}</span>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            color: selectedFriend.isOnline ? '#10B981' : 'var(--text-muted)'
+                          }}
+                        >
+                          {selectedFriend.isOnline ? 'Online' : 'Offline'}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -874,6 +1024,14 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
                   )}
                   <div ref={chatEndRef} />
                 </div>
+
+                {/* Anti-spam cooldown notice */}
+                {spamNotice && (
+                  <div className="chat-cooldown-banner">
+                    <AlertCircle size={13} />
+                    <span>{spamNotice}</span>
+                  </div>
+                )}
 
                 {/* Chat Composer */}
                 <form onSubmit={handleSendMessage} className="friends-chat-composer">
