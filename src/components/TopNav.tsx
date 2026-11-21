@@ -1,11 +1,13 @@
 import React from 'react';
-import { LogOut, User, Shield } from 'lucide-react';
-import type { PlayerProfile } from '../types/platform.js';
+import { LogOut, User, Shield, Gamepad2, MessageSquare } from 'lucide-react';
+import type { HubPage, PlayerProfile } from '../types/platform.js';
 import { MarbleBrandMark } from './GameArtwork.js';
 import { ThemeToggle } from './ThemeToggle.js';
 
 interface TopNavProps {
   player: PlayerProfile;
+  activePage: HubPage;
+  onNavigate: (page: HubPage) => void;
   isDark: boolean;
   onToggleTheme: () => void;
   onOpenAccount: () => void;
@@ -14,6 +16,8 @@ interface TopNavProps {
 
 export const TopNav: React.FC<TopNavProps> = ({
   player,
+  activePage,
+  onNavigate,
   isDark,
   onToggleTheme,
   onOpenAccount,
@@ -32,9 +36,44 @@ export const TopNav: React.FC<TopNavProps> = ({
               margin: '0 2px'
             }}
           />
-          <MarbleBrandMark size={28} />
-          <span className="hub-brand-title">MARBLE GAMES</span>
+          <button
+            type="button"
+            onClick={() => onNavigate('games')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 10,
+              background: 'transparent',
+              padding: 0
+            }}
+            title="Go to Games"
+          >
+            <MarbleBrandMark size={28} />
+            <span className="hub-brand-title">MARBLE GAMES</span>
+          </button>
         </div>
+
+        {/* Center Navigation: Games & Community */}
+        <nav className="hub-nav-links" aria-label="Primary navigation">
+          <button
+            type="button"
+            onClick={() => onNavigate('games')}
+            className={`hub-nav-link ${activePage === 'games' ? 'is-active' : ''}`}
+            aria-current={activePage === 'games' ? 'page' : undefined}
+          >
+            <Gamepad2 size={15} />
+            <span>Games</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('community')}
+            className={`hub-nav-link ${activePage === 'community' ? 'is-active' : ''}`}
+            aria-current={activePage === 'community' ? 'page' : undefined}
+          >
+            <MessageSquare size={15} />
+            <span>Community</span>
+          </button>
+        </nav>
 
         <div className="hub-nav-actions">
           <button
@@ -75,10 +114,30 @@ export const TopNav: React.FC<TopNavProps> = ({
             title="Log out of Marble Games"
           >
             <LogOut size={14} />
-            <span>Log Out</span>
+            <span className="hub-logout-label">Log Out</span>
           </button>
         </div>
       </div>
+
+      {/* Mobile Navigation Row (shown cleanly below top bar on narrow viewports) */}
+      <nav className="hub-mobile-nav" aria-label="Mobile navigation">
+        <button
+          type="button"
+          onClick={() => onNavigate('games')}
+          className={`hub-nav-link ${activePage === 'games' ? 'is-active' : ''}`}
+        >
+          <Gamepad2 size={15} />
+          <span>Games</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate('community')}
+          className={`hub-nav-link ${activePage === 'community' ? 'is-active' : ''}`}
+        >
+          <MessageSquare size={15} />
+          <span>Community</span>
+        </button>
+      </nav>
     </header>
   );
 };

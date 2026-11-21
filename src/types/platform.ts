@@ -48,3 +48,29 @@ export interface GameServerTelemetry {
   activePlayers: number;
   serverVersion?: string;
 }
+
+export type HubPage = 'games' | 'community';
+
+export interface CommunityComment {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorUsername: string;
+  authorIsAdmin: boolean;
+  parentCommentId: string | null;
+  replyToUsername: string | null;
+  content: string;
+  createdAt: string;
+}
+
+export interface CommunityPost {
+  id: string;
+  authorId: string;
+  authorUsername: string;
+  authorIsAdmin: boolean;
+  content: string;
+  createdAt: string;
+  expiresAt: string;
+  commentCount: number;
+  comments: CommunityComment[];
+}
