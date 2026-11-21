@@ -16,7 +16,8 @@ import {
   Gamepad2,
   Star,
   UserCircle,
-  ArrowLeft
+  ArrowLeft,
+  Plus
 } from 'lucide-react';
 import { SocialApi } from '../services/socialApi.js';
 import { GAME_CATALOG } from '../config/games.js';
@@ -108,7 +109,10 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
 
   // Selected DM friend (null = Friends Directory view) & Right Profile Panel toggle
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(initialFriendId);
-  const [showProfilePanel, setShowProfilePanel] = useState<boolean>(true);
+  const [mobilePane, setMobilePane] = useState<'friends' | 'dms'>('friends');
+  const [showProfilePanel, setShowProfilePanel] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth > 1180 : true
+  );
 
   // 1-hour ephemeral Direct Messages state
   const [messages, setMessages] = useState<FriendMessage[]>([]);
@@ -514,8 +518,93 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
   );
 
   const totalPendingCount = overview.incomingRequests.length + overview.outgoingRequests.length;
+  const totalOnlineCount = useMemo(
+    () => overview.friends.filter((f) => f.isOnline).length,
+    [overview.friends]
+  );
+  const totalUnreadDmCount = useMemo(
+    () => overview.friends.reduce((sum, f) => sum + (f.unreadCount || 0), 0),
+    [overview.friends]
+  );
   const activePending = pendingMessages.filter((m) => m.friendId === selectedFriendId);
   const atFriendLimit = overview.friends.length >= overview.maxFriends;
+
+  const openFriendChat = (friendUserId: string) => {
+    setSelectedFriendId(friendUserId);
+    setConfirmRemoveId(null);
+    if (typeof window !== 'undefined' && window.innerWidth <= 1180) {
+      setShowProfilePanel(false);
+    }
+  };
+
+  const renderMobileTopSwitcher = () => (
+    <div className="discord-mobile-switcher-bar">
+      <div className="discord-mobile-segmented" role="tablist" aria-label="Mobile social switcher">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobilePane === 'friends'}
+          onClick={() => {
+            setMobilePane('friends');
+            setSelectedFriendId(null);
+            setConfirmRemoveId(null);
+          }}
+          className={`discord-mobile-seg-btn ${mobilePane === 'friends' ? 'is-active' : ''}`}
+        >
+          <Users size={14} />
+          <span>Friends</span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobilePane === 'dms'}
+          onClick={() => {
+            setMobilePane('dms');
+            setSelectedFriendId(null);
+            setConfirmRemoveId(null);
+          }}
+          className={`discord-mobile-seg-btn ${mobilePane === 'dms' ? 'is-active' : ''}`}
+        >
+          <MessageSquare size={14} />
+          <span>DMs</span>
+          {totalUnreadDmCount > 0 && (
+            <span className="sidebar-pill sidebar-pill--red">
+              {totalUnreadDmCount > 99 ? '99+' : totalUnreadDmCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <div className="discord-mobile-switcher-actions">
+        <button
+          type="button"
+          onClick={() => {
+            setMobilePane('friends');
+            setDirectoryTab('add');
+            setSelectedFriendId(null);
+          }}
+          className={`discord-mobile-add-btn ${
+            mobilePane === 'friends' && directoryTab === 'add' ? 'is-active' : ''
+          }`}
+        >
+          <Plus size={13} />
+          <span>Add Friend</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => loadFriends(false)}
+          disabled={refreshingFriends}
+          className="discord-mobile-refresh-btn"
+          title="Refresh friends"
+          aria-label="Refresh friends"
+        >
+          <RefreshCw size={14} className={refreshingFriends ? 'spin-icon' : ''} />
+        </button>
+      </div>
+    </div>
+  );
 
   // Friend's favorited games mapped from GAME_CATALOG for Right Profile Panel
   const selectedFriendFavoriteGames = useMemo(() => {
@@ -533,10 +622,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
       <div key={friend.friendshipId} className="discord-friend-row">
         <button
           type="button"
-          onClick={() => {
-            setSelectedFriendId(friend.userId);
-            setConfirmRemoveId(null);
-          }}
+          onClick={() => openFriendChat(friend.userId)}
           className="discord-friend-row__main"
         >
           <div className="friend-avatar-wrap">
@@ -595,10 +681,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
           <div className="discord-friend-row__actions">
             <button
               type="button"
-              onClick={() => {
-                setSelectedFriendId(friend.userId);
-                setConfirmRemoveId(null);
-              }}
+              onClick={() => openFriendChat(friend.userId)}
               className="discord-circle-action-btn"
               title={`Message ${friend.username}`}
               aria-label={`Message ${friend.username}`}
@@ -646,11 +729,17 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
   };
 
   return (
-    <div className={`discord-friends-layout ${selectedFriend ? 'has-active-dm' : ''}`}>
+    <div
+      className={`discord-friends-layout ${selectedFriend ? 'has-active-dm' : ''} ${
+        !selectedFriend && mobilePane === 'dms' ? 'mobile-pane-dms' : 'mobile-pane-friends'
+      }`}
+    >
       {/* ==========================================================
           COLUMN 1: INNER DIRECT MESSAGES RAIL
           ========================================================== */}
       <aside className="discord-dm-rail" aria-label="Direct messages navigation">
+        {renderMobileTopSwitcher()}
+
         <div className="discord-dm-rail__top">
           <div className="discord-dm-search">
             <Search size={14} className="discord-dm-search__icon" />
@@ -719,10 +808,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                   <button
                     key={friend.friendshipId}
                     type="button"
-                    onClick={() => {
-                      setSelectedFriendId(friend.userId);
-                      setConfirmRemoveId(null);
-                    }}
+                    onClick={() => openFriendChat(friend.userId)}
                     className={`discord-dm-item ${isSelected ? 'is-active' : ''}`}
                   >
                     <div className="friend-avatar-wrap">
@@ -800,8 +886,43 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
              VIEW B: FRIENDS DIRECTORY (Screenshot 3: Online | All | Pending | Add Friend)
              ======================================================== */
           <>
-            {/* Top Friends Directory Bar */}
-            <header className="discord-stage-header">
+            {/* Mobile-Only 2-Row Header (Row 1: Switcher + Add Friend | Row 2: Full-Width Online / All / Pending) */}
+            {renderMobileTopSwitcher()}
+            <div className="discord-mobile-subtabs" role="tablist" aria-label="Friends filter tabs">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={directoryTab === 'online'}
+                onClick={() => setDirectoryTab('online')}
+                className={`discord-mobile-subtab ${directoryTab === 'online' ? 'is-active' : ''}`}
+              >
+                Online ({totalOnlineCount})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={directoryTab === 'all'}
+                onClick={() => setDirectoryTab('all')}
+                className={`discord-mobile-subtab ${directoryTab === 'all' ? 'is-active' : ''}`}
+              >
+                All ({overview.friends.length})
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={directoryTab === 'pending'}
+                onClick={() => setDirectoryTab('pending')}
+                className={`discord-mobile-subtab ${directoryTab === 'pending' ? 'is-active' : ''}`}
+              >
+                <span>Pending</span>
+                {totalPendingCount > 0 && (
+                  <span className="sidebar-pill sidebar-pill--red">{totalPendingCount}</span>
+                )}
+              </button>
+            </div>
+
+            {/* Desktop Top Friends Directory Bar */}
+            <header className="discord-stage-header discord-directory-header-desktop">
               <div className="discord-stage-header__left">
                 <div className="discord-stage-title">
                   <Users size={18} color="var(--text-secondary)" />
@@ -1504,9 +1625,25 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
 
               {/* Collapsible Right User Profile Panel (Toggled by Hide/Show Profile icon) */}
               {showProfilePanel && (
-                <aside className="discord-profile-panel" aria-label={`${selectedFriend.username} profile`}>
-                  <div className="discord-profile-banner">
-                    <div className="discord-profile-banner__actions">
+                <>
+                  <div
+                    className="discord-profile-backdrop"
+                    onClick={() => setShowProfilePanel(false)}
+                    aria-hidden="true"
+                  />
+                  <aside className="discord-profile-panel" aria-label={`${selectedFriend.username} profile`}>
+                    <div className="discord-profile-banner">
+                      <button
+                        type="button"
+                        onClick={() => setShowProfilePanel(false)}
+                        className="discord-banner-circle-btn discord-profile-close-btn"
+                        title="Close profile panel"
+                        aria-label="Close profile panel"
+                      >
+                        <X size={14} />
+                      </button>
+
+                      <div className="discord-profile-banner__actions">
                       <button
                         type="button"
                         onClick={() => handleToggleFavoriteFriend(selectedFriend)}
@@ -1654,6 +1791,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                     </div>
                   </div>
                 </aside>
+                </>
               )}
             </div>
           </>

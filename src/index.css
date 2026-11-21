@@ -2579,6 +2579,7 @@ input {
   .hub-main.hub-main--friends {
     padding: 0;
     height: calc(100vh - 56px);
+    height: calc(100dvh - 56px);
   }
 
   .identity-banner {
@@ -3793,6 +3794,137 @@ input {
   color: var(--text-primary);
 }
 
+.discord-profile-backdrop {
+  display: none;
+}
+
+.discord-profile-close-btn {
+  display: none;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+
+/* Mobile-Only Segmented Switcher & 2-Row Friends Sub-Tabs (Hidden on Desktop > 768px) */
+.discord-mobile-switcher-bar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.discord-mobile-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+}
+
+.discord-mobile-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.discord-mobile-seg-btn.is-active {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .discord-mobile-seg-btn.is-active {
+  background: #27272A;
+  color: #FAFAFA;
+}
+
+.discord-mobile-switcher-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.discord-mobile-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: #10B981;
+  color: #FFFFFF;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.discord-mobile-add-btn:hover {
+  background: #059669;
+}
+
+.discord-mobile-add-btn.is-active {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10B981;
+}
+
+.discord-mobile-refresh-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.discord-mobile-subtabs {
+  display: none;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.discord-mobile-subtab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 4px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.discord-mobile-subtab.is-active {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .discord-mobile-subtab.is-active {
+  background: #27272A;
+  color: #FAFAFA;
+}
+
 @media (max-width: 1180px) {
   .discord-active-now-panel {
     display: none;
@@ -3802,11 +3934,25 @@ input {
     position: relative;
   }
 
+  .discord-profile-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 24;
+    background: rgba(9, 9, 11, 0.56);
+    backdrop-filter: blur(2px);
+  }
+
+  .discord-profile-close-btn {
+    display: inline-flex;
+  }
+
   .discord-profile-panel {
     position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
+    width: min(310px, 86vw);
     z-index: 25;
     box-shadow: var(--shadow-modal);
   }
@@ -3814,11 +3960,12 @@ input {
 
 @media (max-width: 860px) {
   .discord-friends-layout {
-    min-height: calc(100vh - 56px);
+    height: 100%;
+    min-height: 0;
   }
 
   .discord-dm-rail {
-    width: 196px;
+    width: 210px;
   }
 
   .discord-mobile-back-btn {
@@ -3826,13 +3973,69 @@ input {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  /* Single-Pane Mobile Architecture: Never crush DM rail & Directory side-by-side */
+  .discord-mobile-switcher-bar {
+    display: flex;
+  }
+
+  .discord-mobile-subtabs {
+    display: grid;
+  }
+
+  .discord-directory-header-desktop {
+    display: none;
+  }
+
+  .discord-rail-friends-btn {
+    display: none;
+  }
+
+  .discord-friends-layout.mobile-pane-friends:not(.has-active-dm) .discord-dm-rail {
+    display: none;
+  }
+
+  .discord-friends-layout.mobile-pane-dms:not(.has-active-dm) .discord-dm-rail {
+    width: 100%;
+    border-right: none;
+    background: var(--bg-surface);
+  }
+
+  .discord-friends-layout.mobile-pane-dms:not(.has-active-dm) .discord-main-stage {
+    display: none;
+  }
+
   .discord-friends-layout.has-active-dm .discord-dm-rail {
     display: none;
   }
 
-  .discord-dm-rail {
-    width: 170px;
+  .discord-friends-layout.has-active-dm .discord-main-stage {
+    display: flex;
+  }
+
+  .discord-dm-rail__top {
+    height: auto;
+    padding: 10px 12px 6px;
+    border-bottom: none;
+  }
+
+  .discord-dm-search__input {
+    height: 36px;
+    font-size: 0.84rem;
+  }
+
+  .discord-dm-rail__body {
+    padding: 4px 12px 18px;
+  }
+
+  .discord-dm-item {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+  }
+
+  .discord-stage-header {
+    padding: 0 12px;
   }
 
   .discord-directory-search-wrap,
@@ -3840,5 +4043,19 @@ input {
   .discord-add-friend-header {
     padding-left: 12px;
     padding-right: 12px;
+  }
+
+  .discord-friend-row {
+    padding: 11px 6px;
+    gap: 10px;
+  }
+
+  .discord-chat-feed {
+    padding: 16px 14px 12px;
+  }
+
+  .discord-chat-composer-bar {
+    padding: 10px 12px max(14px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border-subtle);
   }
 }
