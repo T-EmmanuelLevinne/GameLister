@@ -515,6 +515,14 @@ input {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+.hub-shell.hub-shell--friends {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
 .hub-sidebar {
   position: fixed;
   top: 0;
@@ -991,10 +999,12 @@ input {
 }
 
 .hub-main.hub-main--friends {
+  flex: 1 1 0%;
   max-width: none;
   margin: 0;
   padding: 0;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   gap: 0;
 }
@@ -2528,6 +2538,7 @@ input {
 
   .mobile-nav-trigger-bar {
     display: flex;
+    flex-shrink: 0;
   }
 
   .sidebar-mobile-backdrop {
@@ -2577,9 +2588,10 @@ input {
   }
 
   .hub-main.hub-main--friends {
+    flex: 1 1 0%;
     padding: 0;
-    height: calc(100vh - 56px);
-    height: calc(100dvh - 56px);
+    height: auto;
+    min-height: 0;
   }
 
   .identity-banner {
@@ -2716,8 +2728,9 @@ input {
    ========================================================== */
 .discord-friends-layout {
   width: 100%;
+  flex: 1 1 0%;
   height: 100%;
-  min-height: 100vh;
+  min-height: 0;
   display: flex;
   align-items: stretch;
   background: var(--bg-surface);
@@ -3392,8 +3405,10 @@ input {
 
 /* Direct Message Chat Column (Center) */
 .discord-chat-column {
-  flex: 1;
+  flex: 1 1 0%;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg-surface);
@@ -3401,7 +3416,8 @@ input {
 }
 
 .discord-chat-feed {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
   padding: 20px 20px 16px;
   display: flex;
@@ -3536,7 +3552,8 @@ input {
 
 /* Bottom Discord-style Message Composer */
 .discord-chat-composer-bar {
-  padding: 0 18px 18px;
+  margin-top: auto;
+  padding: 12px 18px 18px;
   background: var(--bg-surface);
   flex-shrink: 0;
 }
@@ -3544,9 +3561,10 @@ input {
 .discord-chat-input-box {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px 6px 14px;
-  border-radius: var(--radius-lg);
+  gap: 10px;
+  min-height: 54px;
+  padding: 8px 10px 8px 16px;
+  border-radius: 12px;
   background: var(--bg-app);
   border: 1px solid var(--border-subtle);
   transition: border-color 0.14s ease;
@@ -3562,8 +3580,9 @@ input {
   border: none;
   background: transparent;
   color: var(--text-primary);
-  font-size: 0.87rem;
-  padding: 5px 0;
+  font-size: 0.96rem;
+  line-height: 1.45;
+  padding: 6px 0;
 }
 
 .discord-chat-input::placeholder {
@@ -3571,9 +3590,9 @@ input {
 }
 
 .discord-chat-send-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
   background: #10B981;
   color: #FFFFFF;
   display: inline-flex;
@@ -4055,7 +4074,21 @@ input {
   }
 
   .discord-chat-composer-bar {
-    padding: 10px 12px max(14px, env(safe-area-inset-bottom));
+    padding: 12px 12px max(16px, env(safe-area-inset-bottom));
     border-top: 1px solid var(--border-subtle);
+  }
+
+  .discord-chat-input-box {
+    min-height: 56px;
+    padding: 9px 10px 9px 16px;
+  }
+
+  .discord-chat-input {
+    font-size: 1rem;
+  }
+
+  .discord-chat-send-btn {
+    width: 40px;
+    height: 40px;
   }
 }

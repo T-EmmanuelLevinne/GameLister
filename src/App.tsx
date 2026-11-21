@@ -279,7 +279,7 @@ export const App: React.FC = () => {
   return (
     <div
       data-theme={isDark ? 'dark' : 'light'}
-      className="hub-shell"
+      className={`hub-shell ${activePage === 'friends' ? 'hub-shell--friends' : ''}`}
     >
       {/* Green Fluid GlowCursor Background shared across all views */}
       <div
