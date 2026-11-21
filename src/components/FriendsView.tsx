@@ -389,15 +389,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({ player, onNotification
     <div className="friends-shell">
       {/* Page Header */}
       <div className="page-header-row">
-        <div>
-          <h1 className="page-heading">
-            <Users size={20} color="#10B981" />
-            <span>Friends</span>
-          </h1>
-          <p className="page-subheading">
-            Search players, manage requests, and send 1-hour direct messages. Limit: {overview.friends.length} / {overview.maxFriends} friends.
-          </p>
-        </div>
+        <h1 className="page-heading">Friends</h1>
 
         <button
           type="button"

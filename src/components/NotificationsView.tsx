@@ -164,15 +164,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
   return (
     <div className="notifications-shell">
       <div className="page-header-row">
-        <div>
-          <h1 className="page-heading">
-            <Bell size={20} color="#10B981" />
-            <span>Notifications</span>
-          </h1>
-          <p className="page-subheading">
-            Updates for new friend requests, comments on announcements, and replies to your comments.
-          </p>
-        </div>
+        <h1 className="page-heading">Notifications</h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {unreadCount > 0 && (

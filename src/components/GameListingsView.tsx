@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, X, Clock, AlertCircle, Search, Star, Gamepad2 } from 'lucide-react';
+import { RefreshCw, X, Clock, AlertCircle, Search } from 'lucide-react';
 import { GAME_CATALOG } from '../config/games.js';
 import { PlatformAuthApi } from '../services/authApi.js';
 import type { GameCatalogEntry, GameId, GameServerTelemetry, PlayerProfile } from '../types/platform.js';
@@ -132,26 +132,7 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
     <>
       {/* Page Header */}
       <div className="page-header-row">
-        <div>
-          <h1 className="page-heading">
-            {favoritesOnly ? (
-              <>
-                <Star size={20} color="#EAB308" fill="#FACC15" />
-                <span>Game Library</span>
-              </>
-            ) : (
-              <>
-                <Gamepad2 size={20} color="#10B981" />
-                <span>Explore Games</span>
-              </>
-            )}
-          </h1>
-          <p className="page-subheading">
-            {favoritesOnly
-              ? 'Your favorite games marked with a yellow star for quick launch.'
-              : 'Browse Marble Games titles. Click the star on any game to save it to your Game Library.'}
-          </p>
-        </div>
+        <h1 className="page-heading">{favoritesOnly ? 'Game Library' : 'Explore Games'}</h1>
 
         <button
           type="button"
@@ -278,21 +259,13 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
         </section>
       ) : favoritesOnly && baseCatalog.length === 0 ? (
         <div className="community-empty">
-          <Star size={28} color="#EAB308" />
-          <div style={{ fontSize: '0.96rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            No favorite games in your library yet
-          </div>
-          <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: 380 }}>
-            Mark any game with the yellow star icon in Explore Games to pin it here for quick access.
-          </p>
           {onExploreGames && (
             <button
               type="button"
               onClick={onExploreGames}
               className="btn-flat btn-primary"
-              style={{ marginTop: 6, fontSize: '0.82rem' }}
+              style={{ fontSize: '0.84rem' }}
             >
-              <Gamepad2 size={15} />
               <span>Explore Games</span>
             </button>
           )}

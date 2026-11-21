@@ -128,17 +128,7 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
     <div className="community-shell">
       {/* Page Header */}
       <div className="page-header-row">
-        <div>
-          <h1 className="page-heading">
-            <Megaphone size={20} color="#10B981" />
-            <span>Developer Announcement</span>
-          </h1>
-          <p className="page-subheading">
-            {player.isAdmin
-              ? 'Publish official updates and patch notes. Players can comment and reply below.'
-              : 'Official updates from Marble Games developers. You can comment and reply on announcements below.'}
-          </p>
-        </div>
+        <h1 className="page-heading">Developer Announcement</h1>
 
         <button
           type="button"

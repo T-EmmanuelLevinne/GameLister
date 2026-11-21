@@ -1549,11 +1549,17 @@ input {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
-  padding: 16px 18px;
+  padding: 12px 14px;
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+}
+
+.friends-search-card .catalog-search {
+  flex: none;
+  width: 100%;
+  max-width: 100%;
 }
 
 .friends-search-header {
