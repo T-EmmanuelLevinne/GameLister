@@ -191,7 +191,7 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
               {post.authorIsAdmin && (
                 <span className="community-admin-badge">
                   <Shield size={10} />
-                  Admin
+                  Developer
                 </span>
               )}
             </div>
@@ -293,7 +293,7 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                             {comment.authorIsAdmin && (
                               <span className="community-admin-badge">
                                 <Shield size={9} />
-                                Admin
+                                Developer
                               </span>
                             )}
                           </div>
@@ -363,7 +363,7 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                         {reply.authorIsAdmin && (
                                           <span className="community-admin-badge">
                                             <Shield size={9} />
-                                            Admin
+                                            Developer
                                           </span>
                                         )}
                                       </div>

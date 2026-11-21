@@ -1,13 +1,16 @@
 import React from 'react';
-import { Play, Clock, Users, Layers } from 'lucide-react';
-import type { GameCatalogEntry, GameServerTelemetry } from '../types/platform.js';
+import { Play, Clock, Users, Layers, Star } from 'lucide-react';
+import type { GameCatalogEntry, GameId, GameServerTelemetry } from '../types/platform.js';
 import { GameArtwork } from './GameArtwork.js';
 
 interface GameCardProps {
   game: GameCatalogEntry;
   telemetry?: GameServerTelemetry;
   perGameRating?: { elo: number; wins: number; losses: number };
+  isFavorite?: boolean;
+  togglingFavorite?: boolean;
   launching?: boolean;
+  onToggleFavorite?: (gameId: GameId) => void;
   onSelect: (game: GameCatalogEntry) => void;
 }
 
@@ -15,7 +18,10 @@ export const GameCard: React.FC<GameCardProps> = ({
   game,
   telemetry,
   perGameRating,
+  isFavorite = false,
+  togglingFavorite = false,
   launching = false,
+  onToggleFavorite,
   onSelect
 }) => {
   const isLive = game.status === 'LIVE';
@@ -113,6 +119,24 @@ export const GameCard: React.FC<GameCardProps> = ({
               {game.tagline}
             </p>
           </div>
+
+          {onToggleFavorite && (
+            <button
+              type="button"
+              onClick={() => onToggleFavorite(game.id)}
+              disabled={togglingFavorite}
+              className={`favorite-star-btn ${isFavorite ? 'is-favorited' : ''}`}
+              title={isFavorite ? 'Remove from Game Library' : 'Add to Game Library'}
+              aria-label={isFavorite ? `Unfavorite ${game.name}` : `Favorite ${game.name}`}
+              aria-pressed={isFavorite}
+            >
+              <Star
+                size={17}
+                color={isFavorite ? '#EAB308' : 'currentColor'}
+                fill={isFavorite ? '#FACC15' : 'none'}
+              />
+            </button>
+          )}
         </div>
 
         <p style={{ fontSize: '0.84rem', lineHeight: 1.55, color: 'var(--text-secondary)' }}>

@@ -1,17 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, X, Clock, AlertCircle, Search } from 'lucide-react';
+import { RefreshCw, X, Clock, AlertCircle, Search, Star, Gamepad2 } from 'lucide-react';
 import { GAME_CATALOG } from '../config/games.js';
 import { PlatformAuthApi } from '../services/authApi.js';
-import type { GameCatalogEntry, GameServerTelemetry, PlayerProfile } from '../types/platform.js';
+import type { GameCatalogEntry, GameId, GameServerTelemetry, PlayerProfile } from '../types/platform.js';
 import { GameCard } from './GameCard.js';
 
 interface GameListingsViewProps {
   player: PlayerProfile;
+  favoriteGameIds: Set<GameId>;
+  togglingFavoriteId: GameId | null;
+  onToggleFavorite: (gameId: GameId) => void;
+  favoritesOnly?: boolean;
+  onExploreGames?: () => void;
 }
 
 type CatalogFilter = 'all' | 'live' | 'upcoming';
 
-export const GameListingsView: React.FC<GameListingsViewProps> = ({ player }) => {
+export const GameListingsView: React.FC<GameListingsViewProps> = ({
+  player,
+  favoriteGameIds,
+  togglingFavoriteId,
+  onToggleFavorite,
+  favoritesOnly = false,
+  onExploreGames
+}) => {
   const [filter, setFilter] = useState<CatalogFilter>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [telemetryMap, setTelemetryMap] = useState<Record<string, GameServerTelemetry>>({});
@@ -94,24 +106,66 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({ player }) =>
     }
   };
 
-  const liveCount = GAME_CATALOG.filter((g) => g.status === 'LIVE').length;
-  const upcomingCount = GAME_CATALOG.filter((g) => g.status !== 'LIVE').length;
+  const baseCatalog = favoritesOnly
+    ? GAME_CATALOG.filter((g) => favoriteGameIds.has(g.id))
+    : GAME_CATALOG;
+
+  const liveCount = baseCatalog.filter((g) => g.status === 'LIVE').length;
+  const upcomingCount = baseCatalog.filter((g) => g.status !== 'LIVE').length;
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
-  const filteredGames = GAME_CATALOG.filter((game) => {
-    if (filter === 'live' && game.status !== 'LIVE') return false;
-    if (filter === 'upcoming' && game.status === 'LIVE') return false;
-    if (!normalizedQuery) return true;
-    return (
-      game.name.toLowerCase().includes(normalizedQuery) ||
-      game.genre.toLowerCase().includes(normalizedQuery) ||
-      game.tagline.toLowerCase().includes(normalizedQuery) ||
-      game.modes.some((m) => m.toLowerCase().includes(normalizedQuery))
-    );
-  }).sort((a, b) => a.order - b.order);
+  const filteredGames = baseCatalog
+    .filter((game) => {
+      if (filter === 'live' && game.status !== 'LIVE') return false;
+      if (filter === 'upcoming' && game.status === 'LIVE') return false;
+      if (!normalizedQuery) return true;
+      return (
+        game.name.toLowerCase().includes(normalizedQuery) ||
+        game.genre.toLowerCase().includes(normalizedQuery) ||
+        game.tagline.toLowerCase().includes(normalizedQuery) ||
+        game.modes.some((m) => m.toLowerCase().includes(normalizedQuery))
+      );
+    })
+    .sort((a, b) => a.order - b.order);
 
   return (
     <>
+      {/* Page Header */}
+      <div className="page-header-row">
+        <div>
+          <h1 className="page-heading">
+            {favoritesOnly ? (
+              <>
+                <Star size={20} color="#EAB308" fill="#FACC15" />
+                <span>Game Library</span>
+              </>
+            ) : (
+              <>
+                <Gamepad2 size={20} color="#10B981" />
+                <span>Explore Games</span>
+              </>
+            )}
+          </h1>
+          <p className="page-subheading">
+            {favoritesOnly
+              ? 'Your favorite games marked with a yellow star for quick launch.'
+              : 'Browse Marble Games titles. Click the star on any game to save it to your Game Library.'}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => probeAllServers(false)}
+          disabled={refreshing}
+          className="btn-flat"
+          style={{ padding: '7px 12px', fontSize: '0.8rem' }}
+          title="Refresh server latency & lobbies"
+        >
+          <RefreshCw size={13} />
+          <span>{refreshing ? 'Checking...' : 'Refresh'}</span>
+        </button>
+      </div>
+
       {/* Notice banner if launch fails or URL missing */}
       {notice && (
         <div
@@ -144,31 +198,31 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({ player }) =>
         </div>
       )}
 
-      {/* Catalog Toolbar */}
-      <section className="catalog-toolbar">
-        <div className="catalog-search">
-          <Search size={15} className="catalog-search__icon" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search games or modes..."
-            className="catalog-search__input"
-            aria-label="Search games"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="catalog-search__clear"
-              aria-label="Clear search"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
+      {/* Catalog Toolbar (hidden when library is completely empty) */}
+      {(!favoritesOnly || baseCatalog.length > 0) && (
+        <section className="catalog-toolbar">
+          <div className="catalog-search">
+            <Search size={15} className="catalog-search__icon" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={favoritesOnly ? 'Search favorite games...' : 'Search games or modes...'}
+              className="catalog-search__input"
+              aria-label="Search games"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="catalog-search__clear"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div className="filter-tabs" role="tablist" aria-label="Filter games">
             <button
               type="button"
@@ -177,7 +231,7 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({ player }) =>
               className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
               onClick={() => setFilter('all')}
             >
-              All ({GAME_CATALOG.length})
+              All ({baseCatalog.length})
             </button>
             <button
               type="button"
@@ -198,20 +252,8 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({ player }) =>
               Coming Soon ({upcomingCount})
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => probeAllServers(false)}
-            disabled={refreshing}
-            className="btn-flat"
-            style={{ padding: '7px 12px', fontSize: '0.8rem' }}
-            title="Refresh server latency & lobbies"
-          >
-            <RefreshCw size={13} />
-            <span>{refreshing ? 'Checking...' : 'Refresh'}</span>
-          </button>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Game Cards Grid */}
       {filteredGames.length > 0 ? (
@@ -226,25 +268,37 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({ player }) =>
                   ? { elo: player.elo, wins: player.wins, losses: player.losses }
                   : undefined
               }
+              isFavorite={favoriteGameIds.has(game.id)}
+              togglingFavorite={togglingFavoriteId === game.id}
               launching={launchingGameId === game.id}
+              onToggleFavorite={onToggleFavorite}
               onSelect={handleSelectGame}
             />
           ))}
         </section>
+      ) : favoritesOnly && baseCatalog.length === 0 ? (
+        <div className="community-empty">
+          <Star size={28} color="#EAB308" />
+          <div style={{ fontSize: '0.96rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            No favorite games in your library yet
+          </div>
+          <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: 380 }}>
+            Mark any game with the yellow star icon in Explore Games to pin it here for quick access.
+          </p>
+          {onExploreGames && (
+            <button
+              type="button"
+              onClick={onExploreGames}
+              className="btn-flat btn-primary"
+              style={{ marginTop: 6, fontSize: '0.82rem' }}
+            >
+              <Gamepad2 size={15} />
+              <span>Explore Games</span>
+            </button>
+          )}
+        </div>
       ) : (
-        <div
-          style={{
-            padding: '48px 24px',
-            textAlign: 'center',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-xl)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 10
-          }}
-        >
+        <div className="community-empty">
           <p style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             No games found for "{searchQuery.trim()}"
           </p>

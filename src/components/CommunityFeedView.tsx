@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Send, Clock, AlertCircle, X, MessageSquare } from 'lucide-react';
+import { RefreshCw, Send, Clock, AlertCircle, X, Megaphone, Shield } from 'lucide-react';
 import { CommunityApi } from '../services/communityApi.js';
 import type { CommunityPost, PlayerProfile } from '../types/platform.js';
 import { CommunityPostCard } from './CommunityPostCard.js';
@@ -33,7 +33,7 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       setHasMore(data.hasMore);
       if (data.retentionDays) setRetentionDays(data.retentionDays);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load community feed.');
+      setError(err instanceof Error ? err.message : 'Failed to load developer announcements.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -57,7 +57,7 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       });
       setHasMore(data.hasMore);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load older posts.');
+      setError(err instanceof Error ? err.message : 'Failed to load older announcements.');
     } finally {
       setLoadingMore(false);
     }
@@ -65,6 +65,7 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!player.isAdmin) return;
     const cleaned = postText.trim();
     if (!cleaned) return;
 
@@ -75,7 +76,7 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       setPosts((prev) => [res.post, ...prev]);
       setPostText('');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to publish post.');
+      setError(err instanceof Error ? err.message : 'Failed to publish announcement.');
     } finally {
       setSubmittingPost(false);
     }
@@ -121,53 +122,86 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
     );
   };
 
-  const initial = (player.username.trim()[0] || 'P').toUpperCase();
+  const initial = (player.username.trim()[0] || 'D').toUpperCase();
 
   return (
     <div className="community-shell">
-      {/* Text-only Post Composer */}
-      <form onSubmit={handleCreatePost} className="community-composer">
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div className="community-avatar">{initial}</div>
-          <textarea
-            value={postText}
-            onChange={(e) => setPostText(e.target.value)}
-            maxLength={1000}
-            rows={3}
-            placeholder={`What's on your mind, ${player.username}?`}
-            className="community-textarea"
-            disabled={submittingPost}
-          />
+      {/* Page Header */}
+      <div className="page-header-row">
+        <div>
+          <h1 className="page-heading">
+            <Megaphone size={20} color="#10B981" />
+            <span>Developer Announcement</span>
+          </h1>
+          <p className="page-subheading">
+            {player.isAdmin
+              ? 'Publish official updates and patch notes. Players can comment and reply below.'
+              : 'Official updates from Marble Games developers. You can comment and reply on announcements below.'}
+          </p>
         </div>
 
-        <div className="community-composer__footer">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <Clock size={13} />
-            <span>Text only · Auto-deletes after {retentionDays} days</span>
+        <button
+          type="button"
+          onClick={() => loadFeed(true)}
+          disabled={refreshing || loading}
+          className="btn-flat"
+          style={{ padding: '7px 12px', fontSize: '0.8rem' }}
+        >
+          <RefreshCw size={13} />
+          <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+        </button>
+      </div>
+
+      {/* Developer-Only Announcement Composer (enforced server-side as well) */}
+      {player.isAdmin && (
+        <form onSubmit={handleCreatePost} className="community-composer">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
+            <Shield size={13} />
+            <span>Developer Composer</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.72rem',
-                color: postText.length > 900 ? '#EF4444' : 'var(--text-muted)'
-              }}
-            >
-              {postText.length}/1000
-            </span>
-            <button
-              type="submit"
-              disabled={submittingPost || postText.trim().length === 0}
-              className="btn-flat btn-primary"
-              style={{ padding: '8px 18px', fontSize: '0.84rem' }}
-            >
-              <span>{submittingPost ? 'Posting...' : 'Post'}</span>
-              <Send size={14} />
-            </button>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div className="community-avatar">{initial}</div>
+            <textarea
+              value={postText}
+              onChange={(e) => setPostText(e.target.value)}
+              maxLength={1000}
+              rows={3}
+              placeholder="Write an official Marble Games announcement..."
+              className="community-textarea"
+              disabled={submittingPost}
+            />
           </div>
-        </div>
-      </form>
+
+          <div className="community-composer__footer">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <Clock size={13} />
+              <span>Text only · Auto-deletes after {retentionDays} days</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.72rem',
+                  color: postText.length > 900 ? '#EF4444' : 'var(--text-muted)'
+                }}
+              >
+                {postText.length}/1000
+              </span>
+              <button
+                type="submit"
+                disabled={submittingPost || postText.trim().length === 0}
+                className="btn-flat btn-primary"
+                style={{ padding: '8px 18px', fontSize: '0.84rem' }}
+              >
+                <span>{submittingPost ? 'Publishing...' : 'Publish'}</span>
+                <Send size={14} />
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
 
       {/* Error Banner */}
       {error && (
@@ -201,34 +235,19 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
         </div>
       )}
 
-      {/* Feed Header Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-          Community Feed
-        </div>
-        <button
-          type="button"
-          onClick={() => loadFeed(true)}
-          disabled={refreshing || loading}
-          className="btn-flat"
-          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-        >
-          <RefreshCw size={13} />
-          <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
-        </button>
-      </div>
-
-      {/* Feed Content */}
+      {/* Announcements List */}
       {loading ? (
-        <div className="community-empty">Loading community posts...</div>
+        <div className="community-empty">Loading developer announcements...</div>
       ) : posts.length === 0 ? (
         <div className="community-empty">
-          <MessageSquare size={24} color="var(--text-muted)" />
+          <Megaphone size={24} color="var(--text-muted)" />
           <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            No posts yet
+            No developer announcements yet
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-            Start the conversation by posting above.
+            {player.isAdmin
+              ? 'Publish your first official announcement above.'
+              : 'Check back soon for official updates and patch notes.'}
           </p>
         </div>
       ) : (
@@ -252,7 +271,7 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
               className="btn-flat"
               style={{ width: '100%', padding: '10px 16px' }}
             >
-              {loadingMore ? 'Loading older posts...' : 'Load More Posts'}
+              {loadingMore ? 'Loading older announcements...' : 'Load More Announcements'}
             </button>
           )}
         </div>

@@ -49,7 +49,7 @@ export interface GameServerTelemetry {
   serverVersion?: string;
 }
 
-export type HubPage = 'games' | 'community';
+export type HubPage = 'games' | 'library' | 'announcements' | 'friends' | 'notifications';
 
 export interface CommunityComment {
   id: string;
@@ -73,4 +73,77 @@ export interface CommunityPost {
   expiresAt: string;
   commentCount: number;
   comments: CommunityComment[];
+}
+
+export type RelationshipStatus = 'NONE' | 'PENDING_SENT' | 'PENDING_RECEIVED' | 'FRIENDS';
+
+export interface FriendEntry {
+  friendshipId: string;
+  userId: string;
+  username: string;
+  isAdmin: boolean;
+  isOnline: boolean;
+  lastSeenAt: string | null;
+  since: string;
+}
+
+export interface FriendRequestEntry {
+  friendshipId: string;
+  userId: string;
+  username: string;
+  isAdmin: boolean;
+  isOnline: boolean;
+  createdAt: string;
+}
+
+export interface FriendsOverview {
+  friends: FriendEntry[];
+  incomingRequests: FriendRequestEntry[];
+  outgoingRequests: FriendRequestEntry[];
+  maxFriends: number;
+}
+
+export interface PlayerSearchResult {
+  userId: string;
+  username: string;
+  isAdmin: boolean;
+  isOnline: boolean;
+  relationship: RelationshipStatus;
+  friendshipId: string | null;
+}
+
+export interface FriendMessage {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  content: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface PendingFriendMessage {
+  tempId: string;
+  friendId: string;
+  content: string;
+  createdAt: string;
+  status: 'pending' | 'failed';
+  errorMessage?: string;
+  slow?: boolean;
+}
+
+export type NotificationType = 'FRIEND_REQUEST' | 'POST_COMMENT' | 'COMMENT_REPLY';
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  actorId: string;
+  actorUsername: string;
+  actorIsAdmin: boolean;
+  friendshipId: string | null;
+  friendshipStatus: 'PENDING' | 'ACCEPTED' | null;
+  postId: string | null;
+  commentId: string | null;
+  previewText: string | null;
+  isRead: boolean;
+  createdAt: string;
 }
