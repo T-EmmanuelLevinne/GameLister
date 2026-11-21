@@ -59,7 +59,7 @@ export const App: React.FC = () => {
     localStorage.setItem('marble_games_theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
-  // Sync custom root browser scrollbar theme strictly for authenticated hub (never leaks onto AuthScreen)
+  // Sync custom root browser scrollbar & root background theme strictly for authenticated hub (never leaks onto AuthScreen)
   useEffect(() => {
     const useDarkScrollbar = Boolean(player && isDark);
     document.documentElement.classList.toggle('hub-scrollbar-dark', useDarkScrollbar);
@@ -67,6 +67,15 @@ export const App: React.FC = () => {
       document.documentElement.classList.remove('hub-scrollbar-dark');
     };
   }, [player, isDark]);
+
+  // Lock outer document scroll when on the full-viewport Friends & DM workspace so mobile cannot scroll past the chat composer
+  useEffect(() => {
+    const lockFriendsViewport = Boolean(player && activePage === 'friends');
+    document.documentElement.classList.toggle('hub-friends-locked', lockFriendsViewport);
+    return () => {
+      document.documentElement.classList.remove('hub-friends-locked');
+    };
+  }, [player, activePage]);
 
   // Sync lightweight URL routing with browser Back/Forward
   useEffect(() => {

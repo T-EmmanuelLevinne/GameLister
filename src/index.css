@@ -257,7 +257,23 @@ body {
   background-color: var(--bg-app);
   color: var(--text-primary);
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: clip;
+}
+
+html.hub-scrollbar-dark,
+html.hub-scrollbar-dark body {
+  background-color: #09090B;
+  color: #FAFAFA;
+  color-scheme: dark;
+}
+
+html.hub-friends-locked,
+html.hub-friends-locked body {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* ==========================================================
@@ -508,6 +524,7 @@ input {
 .hub-shell {
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   padding-left: 262px;
   display: flex;
   flex-direction: row;
@@ -517,11 +534,14 @@ input {
 }
 
 .hub-shell.hub-shell--friends {
-  height: 100vh;
-  height: 100dvh;
-  min-height: 100vh;
-  min-height: 100dvh;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .hub-sidebar {
