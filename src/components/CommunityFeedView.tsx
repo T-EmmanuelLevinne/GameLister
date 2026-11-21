@@ -11,7 +11,8 @@ import {
   Check
 } from 'lucide-react';
 import { CommunityApi } from '../services/communityApi.js';
-import type { CommunityPost, PlayerProfile } from '../types/platform.js';
+import { SocialApi } from '../services/socialApi.js';
+import type { CommunityPost, FriendEntry, PlayerProfile } from '../types/platform.js';
 import {
   compressImageFile,
   formatBytes,
@@ -39,6 +40,7 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
   const [compressingImage, setCompressingImage] = useState<boolean>(false);
   const [submittingPost, setSubmittingPost] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [friends, setFriends] = useState<FriendEntry[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,9 +50,15 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
     setError(null);
 
     try {
-      const data = await CommunityApi.getFeed(PAGE_SIZE, 0);
+      const [data, friendsOverview] = await Promise.all([
+        CommunityApi.getFeed(PAGE_SIZE, 0),
+        SocialApi.getFriendsOverview().catch(() => null)
+      ]);
       setPosts(data.posts);
       setHasMore(data.hasMore);
+      if (friendsOverview?.friends) {
+        setFriends(friendsOverview.friends);
+      }
       const ttl = data.commentRetentionDays ?? data.retentionDays;
       if (ttl) setCommentRetentionDays(ttl);
     } catch (err: unknown) {
@@ -395,6 +403,7 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
               key={post.id}
               post={post}
               currentPlayer={player}
+              friends={friends}
               commentRetentionDays={commentRetentionDays}
               onEditPost={handleEditPost}
               onAddComment={handleAddComment}

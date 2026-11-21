@@ -4,6 +4,7 @@ import {
   UserPlus,
   MessageSquare,
   CornerDownRight,
+  AtSign,
   Check,
   CheckCheck,
   RefreshCw,
@@ -204,6 +205,7 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
 
   const renderIcon = (type: NotificationItem['type']) => {
     if (type === 'FRIEND_REQUEST') return <UserPlus size={16} color="#10B981" />;
+    if (type === 'COMMENT_MENTION') return <AtSign size={16} color="#10B981" />;
     if (type === 'COMMENT_REPLY') return <CornerDownRight size={16} color="#10B981" />;
     return <MessageSquare size={16} color="#10B981" />;
   };
@@ -213,6 +215,13 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
       return (
         <>
           <strong>{item.actorUsername}</strong> sent you a friend request
+        </>
+      );
+    }
+    if (item.type === 'COMMENT_MENTION') {
+      return (
+        <>
+          <strong>{item.actorUsername}</strong> mentioned you in a comment
         </>
       );
     }

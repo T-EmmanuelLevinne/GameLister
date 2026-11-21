@@ -98,7 +98,10 @@ export const App: React.FC = () => {
   }, []);
 
   const handleNavigate = useCallback(
-    (page: HubPage) => {
+    (page: HubPage, keepChatSelection: boolean = false) => {
+      if (page === 'friends' && !keepChatSelection) {
+        setActiveChatFriendId(null);
+      }
       setActivePage(page);
       const targetPath = pageToPath(page);
       if (window.location.pathname !== targetPath) {
@@ -117,7 +120,7 @@ export const App: React.FC = () => {
       setSidebarFavoriteFriends((prev) =>
         prev.map((f) => (f.userId === friendUserId ? { ...f, unreadCount: 0 } : f))
       );
-      handleNavigate('friends');
+      handleNavigate('friends', true);
     },
     [handleNavigate]
   );
@@ -315,7 +318,10 @@ export const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
-      <main className="hub-main" style={{ position: 'relative', zIndex: 1 }}>
+      <main
+        className={`hub-main ${activePage === 'friends' ? 'hub-main--friends' : ''}`}
+        style={{ position: 'relative', zIndex: 1 }}
+      >
         {activePage === 'library' ? (
           <GameLibraryView
             player={player}

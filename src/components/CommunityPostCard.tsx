@@ -11,9 +11,10 @@ import {
   Clock,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  AtSign
 } from 'lucide-react';
-import type { CommunityComment, CommunityPost, PlayerProfile } from '../types/platform.js';
+import type { CommunityComment, CommunityPost, FriendEntry, PlayerProfile } from '../types/platform.js';
 import {
   compressImageFile,
   formatBytes,
@@ -24,6 +25,7 @@ import { MarbleBrandMark } from './GameArtwork.js';
 interface CommunityPostCardProps {
   post: CommunityPost;
   currentPlayer: PlayerProfile;
+  friends?: FriendEntry[];
   commentRetentionDays?: number;
   onEditPost: (
     postId: string,
@@ -34,6 +36,203 @@ interface CommunityPostCardProps {
   onDeletePost: (postId: string) => Promise<void>;
   onDeleteComment: (postId: string, commentId: string) => Promise<void>;
 }
+
+interface MentionMatchState {
+  query: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+const detectActiveMention = (text: string, caretPos: number): MentionMatchState | null => {
+  const beforeCaret = text.slice(0, caretPos);
+  const match = /(?:^|[\s([{"'])@([A-Za-z0-9_.-]{0,32})$/.exec(beforeCaret);
+  if (!match) return null;
+  const query = match[1] || '';
+  const atIndex = beforeCaret.lastIndexOf('@');
+  if (atIndex < 0) return null;
+  return {
+    query,
+    startIndex: atIndex,
+    endIndex: caretPos
+  };
+};
+
+interface CommentMentionInputProps {
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  value: string;
+  onChange: (next: string) => void;
+  placeholder: string;
+  disabled?: boolean;
+  autoFocus?: boolean;
+  friends: FriendEntry[];
+}
+
+const CommentMentionInput: React.FC<CommentMentionInputProps> = ({
+  inputRef,
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
+  autoFocus = false,
+  friends
+}) => {
+  const internalRef = useRef<HTMLInputElement>(null);
+  const resolvedRef = inputRef || internalRef;
+
+  const [mentionState, setMentionState] = useState<MentionMatchState | null>(null);
+  const [highlightIndex, setHighlightIndex] = useState<number>(0);
+
+  const matchingFriends = useMemo(() => {
+    if (!mentionState) return [];
+    const q = mentionState.query.trim().toLowerCase();
+    return friends
+      .filter((f) => (q.length === 0 ? true : f.username.toLowerCase().includes(q)))
+      .slice(0, 6);
+  }, [friends, mentionState]);
+
+  const syncMentionFromInput = (text: string, caret: number | null) => {
+    const pos = typeof caret === 'number' ? caret : text.length;
+    const detected = detectActiveMention(text, pos);
+    setMentionState(detected);
+    setHighlightIndex(0);
+  };
+
+  const applyFriendMention = (friendUsername: string) => {
+    if (!mentionState) return;
+    const prefix = value.slice(0, mentionState.startIndex);
+    const suffix = value.slice(mentionState.endIndex);
+    const inserted = `@${friendUsername} `;
+    const nextValue = `${prefix}${inserted}${suffix.replace(/^\s+/, '')}`;
+    onChange(nextValue);
+    setMentionState(null);
+
+    const nextCaret = prefix.length + inserted.length;
+    setTimeout(() => {
+      const el = resolvedRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(nextCaret, nextCaret);
+      }
+    }, 0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!mentionState) return;
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setMentionState(null);
+      return;
+    }
+
+    if (matchingFriends.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIndex((prev) => (prev + 1) % matchingFriends.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIndex((prev) => (prev - 1 + matchingFriends.length) % matchingFriends.length);
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      const chosen = matchingFriends[highlightIndex] || matchingFriends[0];
+      if (chosen) {
+        e.preventDefault();
+        applyFriendMention(chosen.username);
+      }
+    }
+  };
+
+  return (
+    <div className="mention-input-wrap">
+      <input
+        ref={resolvedRef as React.RefObject<HTMLInputElement>}
+        type="text"
+        autoFocus={autoFocus}
+        maxLength={500}
+        value={value}
+        disabled={disabled}
+        placeholder={placeholder}
+        className="comment-input"
+        onChange={(e) => {
+          const next = e.target.value;
+          onChange(next);
+          syncMentionFromInput(next, e.target.selectionStart);
+        }}
+        onKeyDown={handleKeyDown}
+        onClick={(e) => syncMentionFromInput(value, e.currentTarget.selectionStart)}
+        onKeyUp={(e) => {
+          if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) return;
+          syncMentionFromInput(value, e.currentTarget.selectionStart);
+        }}
+        onBlur={() => {
+          setTimeout(() => setMentionState(null), 150);
+        }}
+      />
+
+      {mentionState && (
+        <div className="mention-popover" role="listbox" aria-label="Mention a friend">
+          <div className="mention-popover__header">
+            <AtSign size={12} color="#10B981" />
+            <span>
+              {mentionState.query
+                ? `Friends matching "@${mentionState.query}"`
+                : 'Mention a Friend'}
+            </span>
+          </div>
+
+          {friends.length === 0 ? (
+            <div className="mention-popover__empty">
+              No friends yet. Add friends in the Friends tab to @mention them.
+            </div>
+          ) : matchingFriends.length === 0 ? (
+            <div className="mention-popover__empty">
+              No friends matching "@{mentionState.query}".
+            </div>
+          ) : (
+            <div className="mention-popover__list">
+              {matchingFriends.map((friend, idx) => {
+                const isHighlighted = idx === highlightIndex;
+                return (
+                  <button
+                    key={friend.userId}
+                    type="button"
+                    role="option"
+                    aria-selected={isHighlighted}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyFriendMention(friend.username);
+                    }}
+                    onMouseEnter={() => setHighlightIndex(idx)}
+                    className={`mention-popover__item ${isHighlighted ? 'is-active' : ''}`}
+                  >
+                    <div className="mention-popover__item-left">
+                      <div className="friend-avatar-wrap">
+                        <div className="community-avatar community-avatar--xs">
+                          {(friend.username.trim()[0] || 'P').toUpperCase()}
+                        </div>
+                        <span
+                          className={`presence-dot ${friend.isOnline ? 'is-online' : 'is-offline'}`}
+                        />
+                      </div>
+                      <span className="mention-popover__username">{friend.username}</span>
+                      {friend.isAdmin && (
+                        <span className="community-admin-badge">
+                          <MarbleBrandMark size={9} />
+                          <span>DEV</span>
+                        </span>
+                      )}
+                    </div>
+                    <span className="mention-popover__tag">@{friend.username}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const formatRelativeTime = (iso: string): string => {
   const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -51,6 +250,7 @@ const getInitial = (username: string): string => {
 export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
   post,
   currentPlayer,
+  friends = [],
   commentRetentionDays = 14,
   onEditPost,
   onAddComment,
@@ -58,6 +258,24 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
   onDeletePost,
   onDeleteComment
 }) => {
+  const renderCommentTextWithMentions = (rawText: string) => {
+    const parts = rawText.split(/(@[A-Za-z0-9_.-]{2,32})/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('@') && part.length >= 3) {
+        const mentionedName = part.slice(1);
+        const isSelf = mentionedName.toLowerCase() === currentPlayer.username.toLowerCase();
+        return (
+          <span
+            key={index}
+            className={`comment-mention-tag ${isSelf ? 'is-self' : ''}`}
+          >
+            {part}
+          </span>
+        );
+      }
+      return <React.Fragment key={index}>{part}</React.Fragment>;
+    });
+  };
   const [commentsOpen, setCommentsOpen] = useState<boolean>(
     post.commentCount > 0 && post.commentCount <= 4
   );
@@ -548,20 +766,18 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
       {/* Expandable Facebook-Style Comment & Reply Hierarchy (Text-Only, 14-Day Auto-Delete) */}
       {commentsOpen && (
         <div className="community-comments-section">
-          {/* Top-level Comment Composer (Text-only) */}
+          {/* Top-level Comment Composer (Text-only, supports @friend mentions) */}
           <form onSubmit={handleCreateTopComment} className="comment-composer">
             <div className="community-avatar community-avatar--sm">
               {getInitial(currentPlayer.username)}
             </div>
-            <input
-              ref={commentInputRef}
-              type="text"
-              maxLength={500}
+            <CommentMentionInput
+              inputRef={commentInputRef}
               value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Write a comment..."
-              className="comment-input"
+              onChange={setNewComment}
+              placeholder="Write a comment... (type @ to mention a friend)"
               disabled={submittingComment}
+              friends={friends}
             />
             <button
               type="submit"
@@ -609,14 +825,13 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                             onSubmit={(e) => handleSaveCommentEdit(e, comment.id)}
                             className="inline-comment-editor"
                           >
-                            <input
-                              type="text"
+                            <CommentMentionInput
                               autoFocus
-                              maxLength={500}
                               value={editCommentText}
-                              onChange={(e) => setEditCommentText(e.target.value)}
-                              className="comment-input"
+                              onChange={setEditCommentText}
+                              placeholder="Edit comment... (type @ to mention a friend)"
                               disabled={savingCommentEdit}
+                              friends={friends}
                             />
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <button
@@ -649,7 +864,9 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                 </span>
                               )}
                             </div>
-                            <div className="comment-text">{comment.content}</div>
+                            <div className="comment-text">
+                              {renderCommentTextWithMentions(comment.content)}
+                            </div>
                           </div>
                         )}
 
@@ -729,14 +946,13 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                         onSubmit={(e) => handleSaveCommentEdit(e, reply.id)}
                                         className="inline-comment-editor"
                                       >
-                                        <input
-                                          type="text"
+                                        <CommentMentionInput
                                           autoFocus
-                                          maxLength={500}
                                           value={editCommentText}
-                                          onChange={(e) => setEditCommentText(e.target.value)}
-                                          className="comment-input"
+                                          onChange={setEditCommentText}
+                                          placeholder="Edit reply... (type @ to mention a friend)"
                                           disabled={savingCommentEdit}
+                                          friends={friends}
                                         />
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                           <button
@@ -780,7 +996,7 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                               @{reply.replyToUsername}{' '}
                                             </span>
                                           )}
-                                          {reply.content}
+                                          {renderCommentTextWithMentions(reply.content)}
                                         </div>
                                       </div>
                                     )}
@@ -843,15 +1059,13 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                               </button>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <input
-                                type="text"
+                              <CommentMentionInput
                                 autoFocus
-                                maxLength={500}
                                 value={replyText}
-                                onChange={(e) => setReplyText(e.target.value)}
-                                placeholder={`Reply to @${replyTarget.replyToUsername}...`}
-                                className="comment-input"
+                                onChange={setReplyText}
+                                placeholder={`Reply to @${replyTarget.replyToUsername}... (type @ to mention a friend)`}
                                 disabled={submittingReply}
+                                friends={friends}
                               />
                               <button
                                 type="submit"

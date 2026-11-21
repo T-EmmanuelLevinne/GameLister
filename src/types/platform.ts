@@ -93,6 +93,8 @@ export interface FriendEntry {
   unreadCount: number;
   lastSeenAt: string | null;
   since: string;
+  memberSince?: string | null;
+  favoriteGameIds?: string[];
 }
 
 export interface SidebarFavoriteFriend {
@@ -152,7 +154,11 @@ export interface PendingFriendMessage {
   slow?: boolean;
 }
 
-export type NotificationType = 'FRIEND_REQUEST' | 'POST_COMMENT' | 'COMMENT_REPLY';
+export type NotificationType =
+  | 'FRIEND_REQUEST'
+  | 'POST_COMMENT'
+  | 'COMMENT_REPLY'
+  | 'COMMENT_MENTION';
 
 export interface NotificationItem {
   id: string;
