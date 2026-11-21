@@ -18,7 +18,7 @@ import {
   formatBytes,
   type CompressedImageResult
 } from '../utils/imageCompressor.js';
-import { MarbleBrandMark } from './GameArtwork.js';
+import { RoleBadge } from './RoleBadge.js';
 import { CommunityPostCard } from './CommunityPostCard.js';
 
 interface CommunityFeedViewProps {
@@ -138,11 +138,11 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       prev.map((p) =>
         p.id === postId
           ? {
-              ...p,
-              content: res.post.content,
-              imageUrl: res.post.imageUrl,
-              updatedAt: res.post.updatedAt
-            }
+            ...p,
+            content: res.post.content,
+            imageUrl: res.post.imageUrl,
+            updatedAt: res.post.updatedAt
+          }
           : p
       )
     );
@@ -158,10 +158,10 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       prev.map((p) =>
         p.id === postId
           ? {
-              ...p,
-              commentCount: res.commentCount,
-              comments: [...p.comments, res.comment]
-            }
+            ...p,
+            commentCount: res.commentCount,
+            comments: [...p.comments, res.comment]
+          }
           : p
       )
     );
@@ -173,13 +173,13 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       prev.map((p) =>
         p.id === postId
           ? {
-              ...p,
-              comments: p.comments.map((c) =>
-                c.id === commentId
-                  ? { ...c, content: res.comment.content, updatedAt: res.comment.updatedAt }
-                  : c
-              )
-            }
+            ...p,
+            comments: p.comments.map((c) =>
+              c.id === commentId
+                ? { ...c, content: res.comment.content, updatedAt: res.comment.updatedAt }
+                : c
+            )
+          }
           : p
       )
     );
@@ -197,10 +197,10 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       prev.map((p) =>
         p.id === postId
           ? {
-              ...p,
-              commentCount: res.commentCount,
-              comments: p.comments.filter((c) => !removedSet.has(c.id))
-            }
+            ...p,
+            commentCount: res.commentCount,
+            comments: p.comments.filter((c) => !removedSet.has(c.id))
+          }
           : p
       )
     );
@@ -230,10 +230,11 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       {player.isAdmin && (
         <form onSubmit={handleCreatePost} className="community-composer">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="community-admin-badge">
-              <MarbleBrandMark size={12} />
-              <span>DEV</span>
-            </span>
+            <RoleBadge
+              isAdmin={player.isAdmin}
+              earnedTitle={player.earnedTitle}
+              iconSize={12}
+            />
             <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
               Announcement Composer
             </span>

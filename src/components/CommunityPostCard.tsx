@@ -20,7 +20,7 @@ import {
   formatBytes,
   type CompressedImageResult
 } from '../utils/imageCompressor.js';
-import { MarbleBrandMark } from './GameArtwork.js';
+import { RoleBadge } from './RoleBadge.js';
 
 interface CommunityPostCardProps {
   post: CommunityPost;
@@ -215,12 +215,11 @@ const CommentMentionInput: React.FC<CommentMentionInputProps> = ({
                         />
                       </div>
                       <span className="mention-popover__username">{friend.username}</span>
-                      {friend.isAdmin && (
-                        <span className="community-admin-badge">
-                          <MarbleBrandMark size={9} />
-                          <span>DEV</span>
-                        </span>
-                      )}
+                      <RoleBadge
+                        isAdmin={friend.isAdmin}
+                        earnedTitle={friend.earnedTitle}
+                        iconSize={9}
+                      />
                     </div>
                     <span className="mention-popover__tag">@{friend.username}</span>
                   </button>
@@ -526,12 +525,11 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
               <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                 {post.authorUsername}
               </span>
-              {post.authorIsAdmin && (
-                <span className="community-admin-badge">
-                  <MarbleBrandMark size={11} />
-                  <span>DEV</span>
-                </span>
-              )}
+              <RoleBadge
+                isAdmin={post.authorIsAdmin}
+                earnedTitle={post.authorEarnedTitle}
+                iconSize={11}
+              />
             </div>
             <div
               style={{
@@ -857,12 +855,11 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                           <div className="comment-bubble">
                             <div className="comment-bubble__meta">
                               <span className="comment-author">{comment.authorUsername}</span>
-                              {comment.authorIsAdmin && (
-                                <span className="community-admin-badge">
-                                  <MarbleBrandMark size={10} />
-                                  <span>DEV</span>
-                                </span>
-                              )}
+                              <RoleBadge
+                                isAdmin={comment.authorIsAdmin}
+                                earnedTitle={comment.authorEarnedTitle}
+                                iconSize={10}
+                              />
                             </div>
                             <div className="comment-text">
                               {renderCommentTextWithMentions(comment.content)}
@@ -983,12 +980,11 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                           <span className="comment-author">
                                             {reply.authorUsername}
                                           </span>
-                                          {reply.authorIsAdmin && (
-                                            <span className="community-admin-badge">
-                                              <MarbleBrandMark size={10} />
-                                              <span>DEV</span>
-                                            </span>
-                                          )}
+                                          <RoleBadge
+                                            isAdmin={reply.authorIsAdmin}
+                                            earnedTitle={reply.authorEarnedTitle}
+                                            iconSize={10}
+                                          />
                                         </div>
                                         <div className="comment-text">
                                           {isReplyToSubReply && (

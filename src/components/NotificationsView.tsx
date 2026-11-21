@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { SocialApi } from '../services/socialApi.js';
 import type { HubPage, NotificationItem } from '../types/platform.js';
+import { RoleBadge } from './RoleBadge.js';
 
 interface NotificationsViewProps {
   onUnreadCountChange: (count: number) => void;
@@ -211,32 +212,28 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({
   };
 
   const renderHeadline = (item: NotificationItem) => {
-    if (item.type === 'FRIEND_REQUEST') {
-      return (
-        <>
-          <strong>{item.actorUsername}</strong> sent you a friend request
-        </>
-      );
-    }
-    if (item.type === 'COMMENT_MENTION') {
-      return (
-        <>
-          <strong>{item.actorUsername}</strong> mentioned you in a comment
-        </>
-      );
-    }
-    if (item.type === 'COMMENT_REPLY') {
-      return (
-        <>
-          <strong>{item.actorUsername}</strong> replied to your comment
-        </>
-      );
-    }
-    return (
+    const actorTag = (
       <>
-        <strong>{item.actorUsername}</strong> commented on your announcement
+        <strong>{item.actorUsername}</strong>
+        <RoleBadge
+          isAdmin={item.actorIsAdmin}
+          earnedTitle={item.actorEarnedTitle}
+          iconSize={9}
+          style={{ marginLeft: 5, verticalAlign: 'middle' }}
+        />
       </>
     );
+
+    if (item.type === 'FRIEND_REQUEST') {
+      return <>{actorTag} sent you a friend request</>;
+    }
+    if (item.type === 'COMMENT_MENTION') {
+      return <>{actorTag} mentioned you in a comment</>;
+    }
+    if (item.type === 'COMMENT_REPLY') {
+      return <>{actorTag} replied to your comment</>;
+    }
+    return <>{actorTag} commented on your announcement</>;
   };
 
   return (

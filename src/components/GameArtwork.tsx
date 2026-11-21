@@ -29,6 +29,32 @@ export const MarbleBrandMark: React.FC<{ size?: number }> = ({ size = 30 }) => (
   </span>
 );
 
+export const GameIcon: React.FC<{ gameId: GameId; size?: number }> = ({
+  gameId,
+  size = 16
+}) => {
+  if (gameId === 'gun-roulette') {
+    return (
+      <img
+        src="/gun-roulette-logo.png"
+        alt="Gun Roulette"
+        width={size}
+        height={size}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 4,
+          objectFit: 'cover',
+          flexShrink: 0,
+          display: 'block'
+        }}
+      />
+    );
+  }
+
+  return <MarbleBrandMark size={size} />;
+};
+
 export const GameArtwork: React.FC<{ gameId: GameId }> = ({ gameId }) => {
   if (gameId === 'gun-roulette') {
     return (

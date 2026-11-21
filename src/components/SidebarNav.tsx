@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { HubPage, PlayerProfile, SidebarFavoriteFriend } from '../types/platform.js';
 import { MarbleBrandMark } from './GameArtwork.js';
+import { RoleBadge, isAeonTitle } from './RoleBadge.js';
 import { ThemeToggle } from './ThemeToggle.js';
 
 interface SidebarNavProps {
@@ -175,9 +176,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                     >
                       <span className="sidebar-friend-item__left">
                         <span
-                          className={`sidebar-friend-dot ${
-                            friend.isOnline ? 'is-online' : 'is-offline'
-                          }`}
+                          className={`sidebar-friend-dot ${friend.isOnline ? 'is-online' : 'is-offline'
+                            }`}
                         />
                         <span className="sidebar-friend-name">{friend.username}</span>
                       </span>
@@ -237,11 +237,13 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             <div className="sidebar-profile-meta">
               <span className="sidebar-profile-name">{player.username}</span>
               <span className="sidebar-profile-role">
-                {player.isAdmin ? (
-                  <span className="community-admin-badge" style={{ marginTop: 2 }}>
-                    <MarbleBrandMark size={10} />
-                    <span>DEV</span>
-                  </span>
+                {player.isAdmin || isAeonTitle(player.earnedTitle) ? (
+                  <RoleBadge
+                    isAdmin={player.isAdmin}
+                    earnedTitle={player.earnedTitle}
+                    iconSize={10}
+                    style={{ marginTop: 2 }}
+                  />
                 ) : (
                   <span>Player</span>
                 )}

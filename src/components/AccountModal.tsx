@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, Check, AlertCircle } from 'lucide-react';
 import type { PlayerProfile } from '../types/platform.js';
 import { PlatformAuthApi } from '../services/authApi.js';
+import { RoleBadge, isAeonTitle } from './RoleBadge.js';
 
 interface AccountModalProps {
   player: PlayerProfile;
@@ -83,6 +84,18 @@ export const AccountModal: React.FC<AccountModalProps> = ({
             marginBottom: 18
           }}
         >
+          {(player.isAdmin || isAeonTitle(player.earnedTitle)) && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Title
+              </span>
+              <RoleBadge
+                isAdmin={player.isAdmin}
+                earnedTitle={player.earnedTitle}
+                iconSize={11}
+              />
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Email</span>
             <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>

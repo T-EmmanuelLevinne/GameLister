@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { SocialApi } from '../services/socialApi.js';
 import { GAME_CATALOG } from '../config/games.js';
-import { MarbleBrandMark } from './GameArtwork.js';
+import { GameIcon } from './GameArtwork.js';
+import { RoleBadge } from './RoleBadge.js';
 import type {
   FriendEntry,
   FriendMessage,
@@ -71,6 +72,7 @@ interface MessageGroup {
   senderId: string;
   senderUsername: string;
   senderIsAdmin: boolean;
+  senderEarnedTitle?: string | null;
   headerTimestamp: string;
   items: FriendMessage[];
 }
@@ -464,6 +466,7 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
       const isMine = msg.senderId === player.id;
       const senderUsername = isMine ? player.username : selectedFriend.username;
       const senderIsAdmin = isMine ? player.isAdmin : selectedFriend.isAdmin;
+      const senderEarnedTitle = isMine ? player.earnedTitle : selectedFriend.earnedTitle;
       const prevGroup = groups[groups.length - 1];
       const msgTime = new Date(msg.createdAt).getTime();
       const prevLastMsg = prevGroup ? prevGroup.items[prevGroup.items.length - 1] : null;
@@ -483,13 +486,14 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
           senderId: msg.senderId,
           senderUsername,
           senderIsAdmin,
+          senderEarnedTitle,
           headerTimestamp: formatMessageTimestamp(msg.createdAt),
           items: [msg]
         });
       }
     }
     return groups;
-  }, [messages, player.id, player.username, player.isAdmin, selectedFriend]);
+  }, [messages, player.id, player.username, player.isAdmin, player.earnedTitle, selectedFriend]);
 
   // Filtered lists for Inner DM Rail and Friends Directory
   const filteredDmFriends = useMemo(() => {
@@ -584,9 +588,8 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
             setDirectoryTab('add');
             setSelectedFriendId(null);
           }}
-          className={`discord-mobile-add-btn ${
-            mobilePane === 'friends' && directoryTab === 'add' ? 'is-active' : ''
-          }`}
+          className={`discord-mobile-add-btn ${mobilePane === 'friends' && directoryTab === 'add' ? 'is-active' : ''
+            }`}
         >
           <Plus size={13} />
           <span>Add Friend</span>
@@ -633,12 +636,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
           <div className="discord-friend-row__meta">
             <div className="discord-friend-row__name-line">
               <span className="discord-friend-row__name">{friend.username}</span>
-              {friend.isAdmin && (
-                <span className="community-admin-badge">
-                  <MarbleBrandMark size={10} />
-                  <span>DEV</span>
-                </span>
-              )}
+              <RoleBadge
+                isAdmin={friend.isAdmin}
+                earnedTitle={friend.earnedTitle}
+                iconSize={10}
+              />
               {friend.unreadCount > 0 && (
                 <span className="sidebar-pill sidebar-pill--red">
                   {friend.unreadCount > 99 ? '99+' : friend.unreadCount}
@@ -730,9 +732,8 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
 
   return (
     <div
-      className={`discord-friends-layout ${selectedFriend ? 'has-active-dm' : ''} ${
-        !selectedFriend && mobilePane === 'dms' ? 'mobile-pane-dms' : 'mobile-pane-friends'
-      }`}
+      className={`discord-friends-layout ${selectedFriend ? 'has-active-dm' : ''} ${!selectedFriend && mobilePane === 'dms' ? 'mobile-pane-dms' : 'mobile-pane-friends'
+        }`}
     >
       {/* ==========================================================
           COLUMN 1: INNER DIRECT MESSAGES RAIL
@@ -823,12 +824,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                     <div className="discord-dm-item__info">
                       <div className="discord-dm-item__name-row">
                         <span className="discord-dm-item__name">{friend.username}</span>
-                        {friend.isAdmin && (
-                          <span className="community-admin-badge">
-                            <MarbleBrandMark size={9} />
-                            <span>DEV</span>
-                          </span>
-                        )}
+                        <RoleBadge
+                          isAdmin={friend.isAdmin}
+                          earnedTitle={friend.earnedTitle}
+                          iconSize={9}
+                        />
                       </div>
                       {friend.playingGameName ? (
                         <span className="discord-dm-item__sub is-playing">
@@ -1058,20 +1058,18 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                                 <div className="friend-avatar-wrap">
                                   <div className="community-avatar">{getInitial(result.username)}</div>
                                   <span
-                                    className={`presence-dot ${
-                                      result.isOnline ? 'is-online' : 'is-offline'
-                                    }`}
+                                    className={`presence-dot ${result.isOnline ? 'is-online' : 'is-offline'
+                                      }`}
                                   />
                                 </div>
                                 <div className="discord-friend-row__meta">
                                   <div className="discord-friend-row__name-line">
                                     <span className="discord-friend-row__name">{result.username}</span>
-                                    {result.isAdmin && (
-                                      <span className="community-admin-badge">
-                                        <MarbleBrandMark size={10} />
-                                        <span>DEV</span>
-                                      </span>
-                                    )}
+                                    <RoleBadge
+                                      isAdmin={result.isAdmin}
+                                      earnedTitle={result.earnedTitle}
+                                      iconSize={10}
+                                    />
                                   </div>
                                   {result.playingGameName ? (
                                     <span className="friend-playing-status">
@@ -1080,9 +1078,8 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                                     </span>
                                   ) : (
                                     <span
-                                      className={`friend-row__status ${
-                                        result.isOnline ? 'is-online' : ''
-                                      }`}
+                                      className={`friend-row__status ${result.isOnline ? 'is-online' : ''
+                                        }`}
                                     >
                                       {result.isOnline ? 'Online' : 'Offline'}
                                     </span>
@@ -1187,12 +1184,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                             <div className="discord-friend-row__meta">
                               <div className="discord-friend-row__name-line">
                                 <span className="discord-friend-row__name">{req.username}</span>
-                                {req.isAdmin && (
-                                  <span className="community-admin-badge">
-                                    <MarbleBrandMark size={10} />
-                                    <span>DEV</span>
-                                  </span>
-                                )}
+                                <RoleBadge
+                                  isAdmin={req.isAdmin}
+                                  earnedTitle={req.earnedTitle}
+                                  iconSize={10}
+                                />
                               </div>
                               <span className="friend-row__status">Incoming Friend Request</span>
                             </div>
@@ -1241,12 +1237,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                             <div className="discord-friend-row__meta">
                               <div className="discord-friend-row__name-line">
                                 <span className="discord-friend-row__name">{req.username}</span>
-                                {req.isAdmin && (
-                                  <span className="community-admin-badge">
-                                    <MarbleBrandMark size={10} />
-                                    <span>DEV</span>
-                                  </span>
-                                )}
+                                <RoleBadge
+                                  isAdmin={req.isAdmin}
+                                  earnedTitle={req.earnedTitle}
+                                  iconSize={10}
+                                />
                               </div>
                               <span className="friend-row__status">Outgoing Friend Request</span>
                             </div>
@@ -1359,12 +1354,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                           <div style={{ minWidth: 0 }}>
                             <div className="discord-friend-row__name-line">
                               <span className="discord-friend-row__name">{friend.username}</span>
-                              {friend.isAdmin && (
-                                <span className="community-admin-badge">
-                                  <MarbleBrandMark size={9} />
-                                  <span>DEV</span>
-                                </span>
-                              )}
+                              <RoleBadge
+                                isAdmin={friend.isAdmin}
+                                earnedTitle={friend.earnedTitle}
+                                iconSize={9}
+                              />
                             </div>
                             <div className="friend-playing-status">
                               <Gamepad2 size={11} />
@@ -1417,12 +1411,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
 
                 <span className="discord-chat-header-username">{selectedFriend.username}</span>
 
-                {selectedFriend.isAdmin && (
-                  <span className="community-admin-badge">
-                    <MarbleBrandMark size={10} />
-                    <span>DEV</span>
-                  </span>
-                )}
+                <RoleBadge
+                  isAdmin={selectedFriend.isAdmin}
+                  earnedTitle={selectedFriend.earnedTitle}
+                  iconSize={10}
+                />
 
                 {selectedFriend.playingGameName && (
                   <>
@@ -1461,12 +1454,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                     </div>
                     <div className="discord-chat-intro__name-row">
                       <h2 className="discord-chat-intro__name">{selectedFriend.username}</h2>
-                      {selectedFriend.isAdmin && (
-                        <span className="community-admin-badge">
-                          <MarbleBrandMark size={11} />
-                          <span>DEV</span>
-                        </span>
-                      )}
+                      <RoleBadge
+                        isAdmin={selectedFriend.isAdmin}
+                        earnedTitle={selectedFriend.earnedTitle}
+                        iconSize={11}
+                      />
                     </div>
                     <p className="discord-chat-intro__text">
                       This is the beginning of your direct message history with{' '}
@@ -1500,12 +1492,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                               <span className="discord-msg-group__author">
                                 {group.senderUsername}
                               </span>
-                              {group.senderIsAdmin && (
-                                <span className="community-admin-badge">
-                                  <MarbleBrandMark size={9} />
-                                  <span>DEV</span>
-                                </span>
-                              )}
+                              <RoleBadge
+                                isAdmin={group.senderIsAdmin}
+                                earnedTitle={group.senderEarnedTitle}
+                                iconSize={9}
+                              />
                               <span className="discord-msg-group__time">
                                 {group.headerTimestamp}
                               </span>
@@ -1531,12 +1522,11 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                           <div className="discord-msg-group__content">
                             <div className="discord-msg-group__header">
                               <span className="discord-msg-group__author">{player.username}</span>
-                              {player.isAdmin && (
-                                <span className="community-admin-badge">
-                                  <MarbleBrandMark size={9} />
-                                  <span>DEV</span>
-                                </span>
-                              )}
+                              <RoleBadge
+                                isAdmin={player.isAdmin}
+                                earnedTitle={player.earnedTitle}
+                                iconSize={9}
+                              />
                               <span className="discord-msg-group__time">
                                 {pending.status === 'pending'
                                   ? pending.slow
@@ -1546,9 +1536,8 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                               </span>
                             </div>
                             <div
-                              className={`discord-msg-line ${
-                                pending.status === 'pending' ? 'is-pending' : 'is-failed'
-                              }`}
+                              className={`discord-msg-line ${pending.status === 'pending' ? 'is-pending' : 'is-failed'
+                                }`}
                             >
                               {pending.content}
                             </div>
@@ -1644,153 +1633,151 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                       </button>
 
                       <div className="discord-profile-banner__actions">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleFavoriteFriend(selectedFriend)}
-                        disabled={togglingFavUserId === selectedFriend.userId}
-                        className="discord-banner-circle-btn"
-                        title={
-                          selectedFriend.isFavorite
-                            ? 'Unpin from sidebar Friends'
-                            : 'Pin to sidebar Friends (max 5)'
-                        }
-                        aria-label="Toggle favorite friend"
-                      >
-                        <Star
-                          size={14}
-                          color={selectedFriend.isFavorite ? '#FACC15' : '#FFFFFF'}
-                          fill={selectedFriend.isFavorite ? '#FACC15' : 'none'}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFavoriteFriend(selectedFriend)}
+                          disabled={togglingFavUserId === selectedFriend.userId}
+                          className="discord-banner-circle-btn"
+                          title={
+                            selectedFriend.isFavorite
+                              ? 'Unpin from sidebar Friends'
+                              : 'Pin to sidebar Friends (max 5)'
+                          }
+                          aria-label="Toggle favorite friend"
+                        >
+                          <Star
+                            size={14}
+                            color={selectedFriend.isFavorite ? '#FACC15' : '#FFFFFF'}
+                            fill={selectedFriend.isFavorite ? '#FACC15' : 'none'}
+                          />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfirmRemoveId((prev) =>
+                              prev === selectedFriend.friendshipId
+                                ? null
+                                : selectedFriend.friendshipId
+                            )
+                          }
+                          className="discord-banner-circle-btn"
+                          title={`Remove ${selectedFriend.username}`}
+                          aria-label={`Remove ${selectedFriend.username}`}
+                        >
+                          <UserMinus size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="discord-profile-avatar-overlap">
+                      <div className="discord-profile-avatar">
+                        {getInitial(selectedFriend.username)}
+                        <span
+                          className={`discord-profile-presence ${selectedFriend.isOnline ? 'is-online' : 'is-offline'
+                            }`}
                         />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setConfirmRemoveId((prev) =>
-                            prev === selectedFriend.friendshipId
-                              ? null
-                              : selectedFriend.friendshipId
-                          )
-                        }
-                        className="discord-banner-circle-btn"
-                        title={`Remove ${selectedFriend.username}`}
-                        aria-label={`Remove ${selectedFriend.username}`}
-                      >
-                        <UserMinus size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="discord-profile-avatar-overlap">
-                    <div className="discord-profile-avatar">
-                      {getInitial(selectedFriend.username)}
-                      <span
-                        className={`discord-profile-presence ${
-                          selectedFriend.isOnline ? 'is-online' : 'is-offline'
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="discord-profile-body">
-                    {confirmRemoveId === selectedFriend.friendshipId && (
-                      <div className="discord-profile-confirm-card">
-                        <span>Remove {selectedFriend.username} from friends?</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleRemoveFriendship(
-                                selectedFriend.friendshipId,
-                                selectedFriend.userId
-                              )
-                            }
-                            disabled={busyActionId === selectedFriend.friendshipId}
-                            className="friend-mini-btn friend-mini-btn--danger"
-                          >
-                            Confirm Remove
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmRemoveId(null)}
-                            className="friend-mini-btn"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="discord-profile-identity">
-                      <div className="discord-profile-name-row">
-                        <h3 className="discord-profile-name">{selectedFriend.username}</h3>
-                        {selectedFriend.isAdmin && (
-                          <span className="community-admin-badge">
-                            <MarbleBrandMark size={10} />
-                            <span>DEV</span>
-                          </span>
-                        )}
-                      </div>
-                      <span
-                        className={`discord-profile-status ${
-                          selectedFriend.isOnline ? 'is-online' : ''
-                        }`}
-                      >
-                        {selectedFriend.playingGameName
-                          ? `Playing ${selectedFriend.playingGameName}`
-                          : selectedFriend.isOnline
-                            ? 'Online'
-                            : 'Offline'}
-                      </span>
-                    </div>
-
-                    {selectedFriend.playingGameName && (
-                      <div className="discord-profile-card">
-                        <div className="discord-profile-card__label">CURRENTLY PLAYING</div>
-                        <div className="discord-profile-playing-row">
-                          <Gamepad2 size={15} color="#10B981" />
-                          <span>{selectedFriend.playingGameName}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="discord-profile-card">
-                      <div className="discord-profile-card__section">
-                        <div className="discord-profile-card__label">MEMBER SINCE</div>
-                        <div className="discord-profile-card__value">
-                          {formatShortDate(selectedFriend.memberSince || selectedFriend.since)}
-                        </div>
-                      </div>
-
-                      <div className="discord-profile-card__divider" />
-
-                      <div className="discord-profile-card__section">
-                        <div className="discord-profile-card__label">FRIENDS SINCE</div>
-                        <div className="discord-profile-card__value">
-                          {formatShortDate(selectedFriend.since)}
-                        </div>
                       </div>
                     </div>
 
-                    <div className="discord-profile-card">
-                      <div className="discord-profile-card__label">GAME COLLECTION</div>
-                      {selectedFriendFavoriteGames.length === 0 ? (
-                        <div className="discord-profile-card__muted">
-                          No favorited games in library yet.
-                        </div>
-                      ) : (
-                        <div className="discord-profile-games-list">
-                          {selectedFriendFavoriteGames.map((game) => (
-                            <div key={game.id} className="discord-profile-game-pill">
-                              <MarbleBrandMark size={13} />
-                              <span>{game.name}</span>
-                            </div>
-                          ))}
+                    <div className="discord-profile-body">
+                      {confirmRemoveId === selectedFriend.friendshipId && (
+                        <div className="discord-profile-confirm-card">
+                          <span>Remove {selectedFriend.username} from friends?</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleRemoveFriendship(
+                                  selectedFriend.friendshipId,
+                                  selectedFriend.userId
+                                )
+                              }
+                              disabled={busyActionId === selectedFriend.friendshipId}
+                              className="friend-mini-btn friend-mini-btn--danger"
+                            >
+                              Confirm Remove
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmRemoveId(null)}
+                              className="friend-mini-btn"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </div>
                       )}
+
+                      <div className="discord-profile-identity">
+                        <div className="discord-profile-name-row">
+                          <h3 className="discord-profile-name">{selectedFriend.username}</h3>
+                          <RoleBadge
+                            isAdmin={selectedFriend.isAdmin}
+                            earnedTitle={selectedFriend.earnedTitle}
+                            iconSize={10}
+                          />
+                        </div>
+                        <span
+                          className={`discord-profile-status ${
+                            selectedFriend.isOnline ? 'is-online' : ''
+                          }`}
+                        >
+                          {selectedFriend.playingGameName
+                            ? `Playing ${selectedFriend.playingGameName}`
+                            : selectedFriend.isOnline
+                              ? 'Online'
+                              : 'Offline'}
+                        </span>
+                      </div>
+
+                      {selectedFriend.playingGameName && (
+                        <div className="discord-profile-card">
+                          <div className="discord-profile-card__label">CURRENTLY PLAYING</div>
+                          <div className="discord-profile-playing-row">
+                            <Gamepad2 size={15} color="#10B981" />
+                            <span>{selectedFriend.playingGameName}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="discord-profile-card">
+                        <div className="discord-profile-card__section">
+                          <div className="discord-profile-card__label">MEMBER SINCE</div>
+                          <div className="discord-profile-card__value">
+                            {formatShortDate(selectedFriend.memberSince || selectedFriend.since)}
+                          </div>
+                        </div>
+
+                        <div className="discord-profile-card__divider" />
+
+                        <div className="discord-profile-card__section">
+                          <div className="discord-profile-card__label">FRIENDS SINCE</div>
+                          <div className="discord-profile-card__value">
+                            {formatShortDate(selectedFriend.since)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="discord-profile-card">
+                        <div className="discord-profile-card__label">GAME COLLECTION</div>
+                        {selectedFriendFavoriteGames.length === 0 ? (
+                          <div className="discord-profile-card__muted">
+                            No favorited games in library yet.
+                          </div>
+                        ) : (
+                          <div className="discord-profile-games-list">
+                            {selectedFriendFavoriteGames.map((game) => (
+                              <div key={game.id} className="discord-profile-game-pill">
+                                <GameIcon gameId={game.id} size={16} />
+                                <span>{game.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </aside>
+                  </aside>
                 </>
               )}
             </div>

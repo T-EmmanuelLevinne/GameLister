@@ -57,6 +57,7 @@ export interface CommunityComment {
   authorId: string;
   authorUsername: string;
   authorIsAdmin: boolean;
+  authorEarnedTitle?: string | null;
   parentCommentId: string | null;
   replyToUsername: string | null;
   content: string;
@@ -70,6 +71,7 @@ export interface CommunityPost {
   authorId: string;
   authorUsername: string;
   authorIsAdmin: boolean;
+  authorEarnedTitle?: string | null;
   content: string;
   imageUrl?: string | null;
   createdAt: string;
@@ -86,6 +88,7 @@ export interface FriendEntry {
   userId: string;
   username: string;
   isAdmin: boolean;
+  earnedTitle?: string | null;
   isOnline: boolean;
   playingGameId: string | null;
   playingGameName: string | null;
@@ -110,6 +113,7 @@ export interface FriendRequestEntry {
   userId: string;
   username: string;
   isAdmin: boolean;
+  earnedTitle?: string | null;
   isOnline: boolean;
   playingGameId: string | null;
   playingGameName: string | null;
@@ -128,6 +132,7 @@ export interface PlayerSearchResult {
   userId: string;
   username: string;
   isAdmin: boolean;
+  earnedTitle?: string | null;
   isOnline: boolean;
   playingGameId: string | null;
   playingGameName: string | null;
@@ -166,6 +171,7 @@ export interface NotificationItem {
   actorId: string;
   actorUsername: string;
   actorIsAdmin: boolean;
+  actorEarnedTitle?: string | null;
   friendshipId: string | null;
   friendshipStatus: 'PENDING' | 'ACCEPTED' | null;
   postId: string | null;
