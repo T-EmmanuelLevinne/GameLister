@@ -9,7 +9,7 @@ const getLocalHost = () => {
 
 const DEFAULT_AUTH_API_URL = import.meta.env.PROD
   ? 'https://backend-roullete-service.onrender.com'
-  : `http://${getLocalHost()}:3001`;
+  : `http://${getLocalHost()}:3002`;
 
 const rawAuthBase = import.meta.env.VITE_AUTH_API_URL || DEFAULT_AUTH_API_URL;
 const AUTH_API_BASE = rawAuthBase.trim().replace(/\/+$/, '');
