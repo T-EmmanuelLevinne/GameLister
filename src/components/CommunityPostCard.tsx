@@ -1,11 +1,36 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { MessageSquare, CornerDownRight, Send, Trash2, Shield, X, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  MessageSquare,
+  CornerDownRight,
+  Send,
+  Trash2,
+  Pencil,
+  Plus,
+  Loader2,
+  Check,
+  Clock,
+  X,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
 import type { CommunityComment, CommunityPost, PlayerProfile } from '../types/platform.js';
+import {
+  compressImageFile,
+  formatBytes,
+  type CompressedImageResult
+} from '../utils/imageCompressor.js';
+import { MarbleBrandMark } from './GameArtwork.js';
 
 interface CommunityPostCardProps {
   post: CommunityPost;
   currentPlayer: PlayerProfile;
+  commentRetentionDays?: number;
+  onEditPost: (
+    postId: string,
+    params: { content: string; imageDataUrl?: string | null; removeImage?: boolean }
+  ) => Promise<void>;
   onAddComment: (postId: string, content: string, parentCommentId?: string | null) => Promise<void>;
+  onEditComment: (postId: string, commentId: string, content: string) => Promise<void>;
   onDeletePost: (postId: string) => Promise<void>;
   onDeleteComment: (postId: string, commentId: string) => Promise<void>;
 }
@@ -19,12 +44,6 @@ const formatRelativeTime = (iso: string): string => {
   return `${days}d ago`;
 };
 
-const formatDaysLeft = (expiresAtIso: string): string => {
-  const msLeft = new Date(expiresAtIso).getTime() - Date.now();
-  const daysLeft = Math.max(1, Math.ceil(msLeft / 86400000));
-  return `${daysLeft}d left`;
-};
-
 const getInitial = (username: string): string => {
   return (username.trim()[0] || 'P').toUpperCase();
 };
@@ -32,18 +51,38 @@ const getInitial = (username: string): string => {
 export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
   post,
   currentPlayer,
+  commentRetentionDays = 14,
+  onEditPost,
   onAddComment,
+  onEditComment,
   onDeletePost,
   onDeleteComment
 }) => {
-  const [commentsOpen, setCommentsOpen] = useState<boolean>(post.commentCount > 0 && post.commentCount <= 4);
+  const [commentsOpen, setCommentsOpen] = useState<boolean>(
+    post.commentCount > 0 && post.commentCount <= 4
+  );
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  // Active Facebook-style reply target:
-  // `parentCommentId` is the exact comment being replied to;
-  // `rootThreadId` is the top-level comment under which the inline reply box sits.
+  // Inline Announcement Editing (Developer author only)
+  const [isEditingPost, setIsEditingPost] = useState(false);
+  const [editPostText, setEditPostText] = useState(post.content);
+  const [editPostImage, setEditPostImage] = useState<CompressedImageResult | null>(null);
+  const [editRemoveExistingImage, setEditRemoveExistingImage] = useState(false);
+  const [compressingEditImage, setCompressingEditImage] = useState(false);
+  const [savingPostEdit, setSavingPostEdit] = useState(false);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fullscreen image lightbox
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  // Inline Comment / Reply Editing (Author of comment/reply — works for Developer & regular users)
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
+  const [savingCommentEdit, setSavingCommentEdit] = useState(false);
+
+  // Active Facebook-style reply target
   const [replyTarget, setReplyTarget] = useState<{
     parentCommentId: string;
     rootThreadId: string;
@@ -57,9 +96,7 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
 
   const commentInputRef = useRef<HTMLInputElement>(null);
 
-  // Build Facebook-style 2-level hierarchy from flat comment list:
-  // Level 1: Top-level comments (parentCommentId === null)
-  // Level 2: All replies nested beneath their root top-level thread, retaining @replyToUsername
+  // Build Facebook-style 2-level hierarchy from flat comment list
   const threads = useMemo(() => {
     const byId = new Map<string, CommunityComment>();
     for (const c of post.comments) {
@@ -98,7 +135,87 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
     }));
   }, [post.comments]);
 
+  const canEditPost = post.authorId === currentPlayer.id && currentPlayer.isAdmin;
   const canDeletePost = post.authorId === currentPlayer.id || currentPlayer.isAdmin;
+
+  const startEditingPost = () => {
+    setEditPostText(post.content);
+    setEditPostImage(null);
+    setEditRemoveExistingImage(false);
+    setIsEditingPost(true);
+    setLocalError(null);
+  };
+
+  const handlePickEditImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setCompressingEditImage(true);
+    setLocalError(null);
+    try {
+      const compressed = await compressImageFile(file);
+      setEditPostImage(compressed);
+      setEditRemoveExistingImage(false);
+    } catch (err: unknown) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to compress image.');
+    } finally {
+      setCompressingEditImage(false);
+    }
+  };
+
+  const handleSavePostEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = editPostText.trim();
+    const hasRemainingImage = Boolean(
+      editPostImage || (post.imageUrl && !editRemoveExistingImage)
+    );
+    if (!cleaned && !hasRemainingImage) {
+      setLocalError('Announcement must include text or an image.');
+      return;
+    }
+
+    setSavingPostEdit(true);
+    setLocalError(null);
+    try {
+      await onEditPost(post.id, {
+        content: cleaned,
+        imageDataUrl: editPostImage?.dataUrl || null,
+        removeImage: editRemoveExistingImage && !editPostImage
+      });
+      setIsEditingPost(false);
+      setEditPostImage(null);
+      setEditRemoveExistingImage(false);
+    } catch (err: unknown) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to save announcement changes.');
+    } finally {
+      setSavingPostEdit(false);
+    }
+  };
+
+  const startEditingComment = (comment: CommunityComment) => {
+    setEditingCommentId(comment.id);
+    setEditCommentText(comment.content);
+    setLocalError(null);
+  };
+
+  const handleSaveCommentEdit = async (e: React.FormEvent, commentId: string) => {
+    e.preventDefault();
+    const cleaned = editCommentText.trim();
+    if (!cleaned) return;
+
+    setSavingCommentEdit(true);
+    setLocalError(null);
+    try {
+      await onEditComment(post.id, commentId, cleaned);
+      setEditingCommentId(null);
+      setEditCommentText('');
+    } catch (err: unknown) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to update comment.');
+    } finally {
+      setSavingCommentEdit(false);
+    }
+  };
 
   const handleCreateTopComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,7 +261,7 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
     try {
       await onDeletePost(post.id);
     } catch (err: unknown) {
-      setLocalError(err instanceof Error ? err.message : 'Failed to delete post.');
+      setLocalError(err instanceof Error ? err.message : 'Failed to delete announcement.');
       setDeletingPost(false);
     }
   };
@@ -156,6 +273,9 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
       await onDeleteComment(post.id, commentId);
       if (replyTarget?.parentCommentId === commentId || replyTarget?.rootThreadId === commentId) {
         setReplyTarget(null);
+      }
+      if (editingCommentId === commentId) {
+        setEditingCommentId(null);
       }
     } catch (err: unknown) {
       setLocalError(err instanceof Error ? err.message : 'Failed to delete comment.');
@@ -179,7 +299,7 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
 
   return (
     <article className="community-card">
-      {/* Post Header */}
+      {/* Announcement Header */}
       <div className="community-card__header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <div className="community-avatar">{getInitial(post.authorUsername)}</div>
@@ -190,35 +310,215 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
               </span>
               {post.authorIsAdmin && (
                 <span className="community-admin-badge">
-                  <Shield size={10} />
-                  Developer
+                  <MarbleBrandMark size={11} />
+                  <span>DEV</span>
                 </span>
               )}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 1 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: '0.73rem',
+                color: 'var(--text-muted)',
+                marginTop: 1
+              }}
+            >
               <span>{formatRelativeTime(post.createdAt)}</span>
-              <span>·</span>
-              <span title="Automatically deleted 14 days after posting">{formatDaysLeft(post.expiresAt)}</span>
+              {post.updatedAt && (
+                <>
+                  <span>·</span>
+                  <span>Edited</span>
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        {canDeletePost && (
-          <button
-            type="button"
-            onClick={handleRemovePost}
-            disabled={deletingPost}
-            className="community-icon-btn"
-            title="Delete post"
-            aria-label="Delete post"
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {canEditPost && !isEditingPost && (
+            <button
+              type="button"
+              onClick={startEditingPost}
+              className="community-icon-btn community-icon-btn--neutral"
+              title="Edit announcement"
+              aria-label="Edit announcement"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+          {canDeletePost && (
+            <button
+              type="button"
+              onClick={handleRemovePost}
+              disabled={deletingPost}
+              className="community-icon-btn"
+              title="Delete announcement"
+              aria-label="Delete announcement"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Text-only Post Content */}
-      <div className="community-card__body">{post.content}</div>
+      {/* Announcement Body or Inline Edit Mode */}
+      {isEditingPost ? (
+        <form onSubmit={handleSavePostEdit} className="inline-post-editor">
+          <textarea
+            value={editPostText}
+            onChange={(e) => setEditPostText(e.target.value)}
+            maxLength={1000}
+            rows={3}
+            placeholder="Update announcement text..."
+            className="community-textarea"
+            disabled={savingPostEdit}
+          />
+
+          {/* Existing or newly replaced compressed image preview inside editor */}
+          {editPostImage ? (
+            <div className="composer-image-preview">
+              <img
+                src={editPostImage.dataUrl}
+                alt="Updated attachment preview"
+                className="composer-image-preview__img"
+              />
+              <div className="composer-image-preview__bar">
+                <span className="compression-badge">
+                  <Check size={11} />
+                  <span>
+                    Compressed: {formatBytes(editPostImage.originalBytes)} to{' '}
+                    {formatBytes(editPostImage.compressedBytes)}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditPostImage(null)}
+                  className="composer-image-remove-btn"
+                >
+                  <X size={13} />
+                  <span>Remove</span>
+                </button>
+              </div>
+            </div>
+          ) : post.imageUrl && !editRemoveExistingImage ? (
+            <div className="composer-image-preview">
+              <img
+                src={post.imageUrl}
+                alt="Current announcement image"
+                className="composer-image-preview__img"
+              />
+              <div className="composer-image-preview__bar">
+                <span style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  Current attached image
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditRemoveExistingImage(true)}
+                  className="composer-image-remove-btn"
+                >
+                  <X size={13} />
+                  <span>Remove image</span>
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="inline-post-editor__footer">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                ref={editFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handlePickEditImage}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => editFileInputRef.current?.click()}
+                disabled={savingPostEdit || compressingEditImage}
+                className="composer-plus-btn"
+                title="Add or replace image (auto-compressed)"
+                aria-label="Add or replace image"
+              >
+                {compressingEditImage ? (
+                  <Loader2 size={15} className="spin-icon" />
+                ) : (
+                  <Plus size={16} />
+                )}
+              </button>
+              <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                {editPostText.length}/1000
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditingPost(false);
+                  setEditPostImage(null);
+                  setEditRemoveExistingImage(false);
+                }}
+                disabled={savingPostEdit}
+                className="btn-flat"
+                style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingPostEdit || compressingEditImage}
+                className="btn-flat btn-primary"
+                style={{ padding: '6px 14px', fontSize: '0.78rem' }}
+              >
+                {savingPostEdit ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </form>
+      ) : (
+        <>
+          {post.content && <div className="community-card__body">{post.content}</div>}
+
+          {post.imageUrl && (
+            <div className="announcement-image-frame">
+              <img
+                src={post.imageUrl}
+                alt="Developer announcement attachment"
+                className="announcement-image"
+                loading="lazy"
+                onClick={() => setLightboxOpen(true)}
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Fullscreen Image Lightbox */}
+      {lightboxOpen && post.imageUrl && (
+        <div className="modal-overlay" onClick={() => setLightboxOpen(false)}>
+          <div
+            className="image-lightbox-box"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(false)}
+              className="image-lightbox-close"
+              aria-label="Close image preview"
+            >
+              <X size={18} />
+            </button>
+            <img
+              src={post.imageUrl}
+              alt="Developer announcement full view"
+              className="image-lightbox-img"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Action / Comment Count Bar */}
       <div className="community-card__actions">
@@ -245,12 +545,14 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
 
       {localError && <div className="community-inline-error">{localError}</div>}
 
-      {/* Expandable Facebook-Style Comment & Reply Hierarchy */}
+      {/* Expandable Facebook-Style Comment & Reply Hierarchy (Text-Only, 14-Day Auto-Delete) */}
       {commentsOpen && (
         <div className="community-comments-section">
-          {/* Top-level Comment Composer */}
+          {/* Top-level Comment Composer (Text-only) */}
           <form onSubmit={handleCreateTopComment} className="comment-composer">
-            <div className="community-avatar community-avatar--sm">{getInitial(currentPlayer.username)}</div>
+            <div className="community-avatar community-avatar--sm">
+              {getInitial(currentPlayer.username)}
+            </div>
             <input
               ref={commentInputRef}
               type="text"
@@ -272,12 +574,27 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
             </button>
           </form>
 
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: '0.7rem',
+              color: 'var(--text-muted)'
+            }}
+          >
+            <Clock size={11} />
+            <span>Comments and replies are text-only and auto-delete after {commentRetentionDays} days.</span>
+          </div>
+
           {/* Threaded Comments List */}
           {threads.length > 0 && (
             <div className="comment-thread-list">
               {threads.map(({ comment, replies }) => {
                 const isRepliesExpanded = expandedThreads[comment.id] ?? replies.length <= 2;
-                const canDeleteComment = comment.authorId === currentPlayer.id || currentPlayer.isAdmin;
+                const canEditComment = comment.authorId === currentPlayer.id;
+                const canDeleteComment =
+                  comment.authorId === currentPlayer.id || currentPlayer.isAdmin;
 
                 return (
                   <div key={comment.id} className="comment-root-block">
@@ -287,21 +604,60 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                         {getInitial(comment.authorUsername)}
                       </div>
                       <div className="comment-bubble-col">
-                        <div className="comment-bubble">
-                          <div className="comment-bubble__meta">
-                            <span className="comment-author">{comment.authorUsername}</span>
-                            {comment.authorIsAdmin && (
-                              <span className="community-admin-badge">
-                                <Shield size={9} />
-                                Developer
-                              </span>
-                            )}
+                        {editingCommentId === comment.id ? (
+                          <form
+                            onSubmit={(e) => handleSaveCommentEdit(e, comment.id)}
+                            className="inline-comment-editor"
+                          >
+                            <input
+                              type="text"
+                              autoFocus
+                              maxLength={500}
+                              value={editCommentText}
+                              onChange={(e) => setEditCommentText(e.target.value)}
+                              className="comment-input"
+                              disabled={savingCommentEdit}
+                            />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <button
+                                type="submit"
+                                disabled={savingCommentEdit || editCommentText.trim().length === 0}
+                                className="btn-flat btn-primary"
+                                style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                              >
+                                {savingCommentEdit ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingCommentId(null)}
+                                disabled={savingCommentEdit}
+                                className="btn-flat"
+                                style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <div className="comment-bubble">
+                            <div className="comment-bubble__meta">
+                              <span className="comment-author">{comment.authorUsername}</span>
+                              {comment.authorIsAdmin && (
+                                <span className="community-admin-badge">
+                                  <MarbleBrandMark size={10} />
+                                  <span>DEV</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="comment-text">{comment.content}</div>
                           </div>
-                          <div className="comment-text">{comment.content}</div>
-                        </div>
+                        )}
 
                         <div className="comment-meta-actions">
-                          <span>{formatRelativeTime(comment.createdAt)}</span>
+                          <span>
+                            {formatRelativeTime(comment.createdAt)}
+                            {comment.updatedAt ? ' · Edited' : ''}
+                          </span>
                           <button
                             type="button"
                             className="comment-meta-btn"
@@ -309,6 +665,15 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                           >
                             Reply
                           </button>
+                          {canEditComment && editingCommentId !== comment.id && (
+                            <button
+                              type="button"
+                              className="comment-meta-btn"
+                              onClick={() => startEditingComment(comment)}
+                            >
+                              Edit
+                            </button>
+                          )}
                           {canDeleteComment && (
                             <button
                               type="button"
@@ -346,10 +711,12 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                         {replies.length > 0 && isRepliesExpanded && (
                           <div className="reply-thread">
                             {replies.map((reply) => {
+                              const canEditReply = reply.authorId === currentPlayer.id;
                               const canDeleteReply =
                                 reply.authorId === currentPlayer.id || currentPlayer.isAdmin;
                               const isReplyToSubReply =
-                                reply.parentCommentId !== comment.id && Boolean(reply.replyToUsername);
+                                reply.parentCommentId !== comment.id &&
+                                Boolean(reply.replyToUsername);
 
                               return (
                                 <div key={reply.id} className="comment-row">
@@ -357,26 +724,72 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                     {getInitial(reply.authorUsername)}
                                   </div>
                                   <div className="comment-bubble-col">
-                                    <div className="comment-bubble">
-                                      <div className="comment-bubble__meta">
-                                        <span className="comment-author">{reply.authorUsername}</span>
-                                        {reply.authorIsAdmin && (
-                                          <span className="community-admin-badge">
-                                            <Shield size={9} />
-                                            Developer
+                                    {editingCommentId === reply.id ? (
+                                      <form
+                                        onSubmit={(e) => handleSaveCommentEdit(e, reply.id)}
+                                        className="inline-comment-editor"
+                                      >
+                                        <input
+                                          type="text"
+                                          autoFocus
+                                          maxLength={500}
+                                          value={editCommentText}
+                                          onChange={(e) => setEditCommentText(e.target.value)}
+                                          className="comment-input"
+                                          disabled={savingCommentEdit}
+                                        />
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                          <button
+                                            type="submit"
+                                            disabled={
+                                              savingCommentEdit ||
+                                              editCommentText.trim().length === 0
+                                            }
+                                            className="btn-flat btn-primary"
+                                            style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                                          >
+                                            {savingCommentEdit ? 'Saving...' : 'Save'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setEditingCommentId(null)}
+                                            disabled={savingCommentEdit}
+                                            className="btn-flat"
+                                            style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </form>
+                                    ) : (
+                                      <div className="comment-bubble">
+                                        <div className="comment-bubble__meta">
+                                          <span className="comment-author">
+                                            {reply.authorUsername}
                                           </span>
-                                        )}
+                                          {reply.authorIsAdmin && (
+                                            <span className="community-admin-badge">
+                                              <MarbleBrandMark size={10} />
+                                              <span>DEV</span>
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="comment-text">
+                                          {isReplyToSubReply && (
+                                            <span className="reply-mention">
+                                              @{reply.replyToUsername}{' '}
+                                            </span>
+                                          )}
+                                          {reply.content}
+                                        </div>
                                       </div>
-                                      <div className="comment-text">
-                                        {isReplyToSubReply && (
-                                          <span className="reply-mention">@{reply.replyToUsername} </span>
-                                        )}
-                                        {reply.content}
-                                      </div>
-                                    </div>
+                                    )}
 
                                     <div className="comment-meta-actions">
-                                      <span>{formatRelativeTime(reply.createdAt)}</span>
+                                      <span>
+                                        {formatRelativeTime(reply.createdAt)}
+                                        {reply.updatedAt ? ' · Edited' : ''}
+                                      </span>
                                       <button
                                         type="button"
                                         className="comment-meta-btn"
@@ -386,6 +799,15 @@ export const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                       >
                                         Reply
                                       </button>
+                                      {canEditReply && editingCommentId !== reply.id && (
+                                        <button
+                                          type="button"
+                                          className="comment-meta-btn"
+                                          onClick={() => startEditingComment(reply)}
+                                        >
+                                          Edit
+                                        </button>
+                                      )}
                                       {canDeleteReply && (
                                         <button
                                           type="button"

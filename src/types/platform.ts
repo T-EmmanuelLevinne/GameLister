@@ -61,6 +61,8 @@ export interface CommunityComment {
   replyToUsername: string | null;
   content: string;
   createdAt: string;
+  updatedAt?: string | null;
+  expiresAt?: string;
 }
 
 export interface CommunityPost {
@@ -69,8 +71,10 @@ export interface CommunityPost {
   authorUsername: string;
   authorIsAdmin: boolean;
   content: string;
+  imageUrl?: string | null;
   createdAt: string;
-  expiresAt: string;
+  updatedAt?: string | null;
+  expiresAt?: string | null;
   commentCount: number;
   comments: CommunityComment[];
 }

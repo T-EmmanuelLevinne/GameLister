@@ -8,8 +8,7 @@ import {
   Settings,
   LogOut,
   Menu,
-  X,
-  Shield
+  X
 } from 'lucide-react';
 import type { HubPage, PlayerProfile, SidebarFavoriteFriend } from '../types/platform.js';
 import { MarbleBrandMark } from './GameArtwork.js';
@@ -239,10 +238,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
               <span className="sidebar-profile-name">{player.username}</span>
               <span className="sidebar-profile-role">
                 {player.isAdmin ? (
-                  <>
-                    <Shield size={10} />
-                    <span>Developer</span>
-                  </>
+                  <span className="community-admin-badge" style={{ marginTop: 2 }}>
+                    <MarbleBrandMark size={10} />
+                    <span>DEV</span>
+                  </span>
                 ) : (
                   <span>Player</span>
                 )}

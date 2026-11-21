@@ -1,7 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Send, Clock, AlertCircle, X, Megaphone, Shield } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  RefreshCw,
+  Send,
+  Clock,
+  AlertCircle,
+  X,
+  Megaphone,
+  Plus,
+  Loader2,
+  Check
+} from 'lucide-react';
 import { CommunityApi } from '../services/communityApi.js';
 import type { CommunityPost, PlayerProfile } from '../types/platform.js';
+import {
+  compressImageFile,
+  formatBytes,
+  type CompressedImageResult
+} from '../utils/imageCompressor.js';
+import { MarbleBrandMark } from './GameArtwork.js';
 import { CommunityPostCard } from './CommunityPostCard.js';
 
 interface CommunityFeedViewProps {
@@ -13,14 +29,18 @@ const PAGE_SIZE = 20;
 export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) => {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [hasMore, setHasMore] = useState<boolean>(false);
-  const [retentionDays, setRetentionDays] = useState<number>(14);
+  const [commentRetentionDays, setCommentRetentionDays] = useState<number>(14);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
   const [postText, setPostText] = useState<string>('');
+  const [attachedImage, setAttachedImage] = useState<CompressedImageResult | null>(null);
+  const [compressingImage, setCompressingImage] = useState<boolean>(false);
   const [submittingPost, setSubmittingPost] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFeed = useCallback(async (isRefresh: boolean = false) => {
     if (isRefresh) setRefreshing(true);
@@ -31,7 +51,8 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       const data = await CommunityApi.getFeed(PAGE_SIZE, 0);
       setPosts(data.posts);
       setHasMore(data.hasMore);
-      if (data.retentionDays) setRetentionDays(data.retentionDays);
+      const ttl = data.commentRetentionDays ?? data.retentionDays;
+      if (ttl) setCommentRetentionDays(ttl);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load developer announcements.');
     } finally {
@@ -63,23 +84,60 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
     }
   };
 
+  const handlePickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setCompressingImage(true);
+    setError(null);
+    try {
+      const compressed = await compressImageFile(file);
+      setAttachedImage(compressed);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to compress image.');
+    } finally {
+      setCompressingImage(false);
+    }
+  };
+
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!player.isAdmin) return;
     const cleaned = postText.trim();
-    if (!cleaned) return;
+    if (!cleaned && !attachedImage) return;
 
     setSubmittingPost(true);
     setError(null);
     try {
-      const res = await CommunityApi.createPost(cleaned);
+      const res = await CommunityApi.createPost(cleaned, attachedImage?.dataUrl || null);
       setPosts((prev) => [res.post, ...prev]);
       setPostText('');
+      setAttachedImage(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to publish announcement.');
     } finally {
       setSubmittingPost(false);
     }
+  };
+
+  const handleEditPost = async (
+    postId: string,
+    params: { content: string; imageDataUrl?: string | null; removeImage?: boolean }
+  ) => {
+    const res = await CommunityApi.editPost(postId, params);
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              content: res.post.content,
+              imageUrl: res.post.imageUrl,
+              updatedAt: res.post.updatedAt
+            }
+          : p
+      )
+    );
   };
 
   const handleAddComment = async (
@@ -95,6 +153,24 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
               ...p,
               commentCount: res.commentCount,
               comments: [...p.comments, res.comment]
+            }
+          : p
+      )
+    );
+  };
+
+  const handleEditComment = async (postId: string, commentId: string, content: string) => {
+    const res = await CommunityApi.editComment(commentId, content);
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              comments: p.comments.map((c) =>
+                c.id === commentId
+                  ? { ...c, content: res.comment.content, updatedAt: res.comment.updatedAt }
+                  : c
+              )
             }
           : p
       )
@@ -145,9 +221,14 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
       {/* Developer-Only Announcement Composer (enforced server-side as well) */}
       {player.isAdmin && (
         <form onSubmit={handleCreatePost} className="community-composer">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
-            <Shield size={13} />
-            <span>Developer Composer</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="community-admin-badge">
+              <MarbleBrandMark size={12} />
+              <span>DEV</span>
+            </span>
+            <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              Announcement Composer
+            </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -163,10 +244,73 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
             />
           </div>
 
+          {/* Compressed Image Preview */}
+          {attachedImage && (
+            <div className="composer-image-preview">
+              <img
+                src={attachedImage.dataUrl}
+                alt="Announcement attachment preview"
+                className="composer-image-preview__img"
+              />
+              <div className="composer-image-preview__bar">
+                <span className="compression-badge">
+                  <Check size={11} />
+                  <span>
+                    Compressed: {formatBytes(attachedImage.originalBytes)} to{' '}
+                    {formatBytes(attachedImage.compressedBytes)} ({attachedImage.width}x
+                    {attachedImage.height})
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAttachedImage(null)}
+                  disabled={submittingPost}
+                  className="composer-image-remove-btn"
+                  title="Remove attached image"
+                >
+                  <X size={13} />
+                  <span>Remove</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="community-composer__footer">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              <Clock size={13} />
-              <span>Text only · Auto-deletes after {retentionDays} days</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handlePickImage}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={submittingPost || compressingImage}
+                className="composer-plus-btn"
+                title="Attach image (JPG, PNG, WebP — auto-compressed)"
+                aria-label="Attach image"
+              >
+                {compressingImage ? (
+                  <Loader2 size={15} className="spin-icon" />
+                ) : (
+                  <Plus size={16} />
+                )}
+              </button>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: '0.75rem',
+                  color: 'var(--text-muted)'
+                }}
+              >
+                <Clock size={13} />
+                <span>Comments auto-delete after {commentRetentionDays} days</span>
+              </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -181,7 +325,11 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
               </span>
               <button
                 type="submit"
-                disabled={submittingPost || postText.trim().length === 0}
+                disabled={
+                  submittingPost ||
+                  compressingImage ||
+                  (postText.trim().length === 0 && !attachedImage)
+                }
                 className="btn-flat btn-primary"
                 style={{ padding: '8px 18px', fontSize: '0.84rem' }}
               >
@@ -247,7 +395,10 @@ export const CommunityFeedView: React.FC<CommunityFeedViewProps> = ({ player }) 
               key={post.id}
               post={post}
               currentPlayer={player}
+              commentRetentionDays={commentRetentionDays}
+              onEditPost={handleEditPost}
               onAddComment={handleAddComment}
+              onEditComment={handleEditComment}
               onDeletePost={handleDeletePost}
               onDeleteComment={handleDeleteComment}
             />

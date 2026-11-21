@@ -13,11 +13,11 @@ import {
   AlertCircle,
   UserMinus,
   RotateCcw,
-  Shield,
   Gamepad2,
   Star
 } from 'lucide-react';
 import { SocialApi } from '../services/socialApi.js';
+import { MarbleBrandMark } from './GameArtwork.js';
 import type {
   FriendEntry,
   FriendMessage,
@@ -614,8 +614,8 @@ export const FriendsView: React.FC<FriendsViewProps> = ({
                         </span>
                         {result.isAdmin && (
                           <span className="community-admin-badge">
-                            <Shield size={9} />
-                            Developer
+                            <MarbleBrandMark size={10} />
+                            <span>DEV</span>
                           </span>
                         )}
                       </div>
