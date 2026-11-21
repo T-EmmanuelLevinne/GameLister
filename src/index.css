@@ -256,7 +256,7 @@ body {
   background-color: var(--bg-app);
   color: var(--text-primary);
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* ==========================================================
@@ -507,6 +507,7 @@ input {
 .hub-shell {
   position: relative;
   min-height: 100vh;
+  padding-left: 262px;
   display: flex;
   flex-direction: row;
   background: var(--bg-app);
@@ -515,8 +516,10 @@ input {
 }
 
 .hub-sidebar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  bottom: 0;
   height: 100vh;
   width: 262px;
   flex-shrink: 0;
@@ -2511,6 +2514,7 @@ input {
 @media (max-width: 860px) {
   .hub-shell {
     flex-direction: column;
+    padding-left: 0;
   }
 
   .mobile-nav-trigger-bar {
