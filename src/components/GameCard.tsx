@@ -212,12 +212,13 @@ export const GameCard: React.FC<GameCardProps> = ({
           type="button"
           onClick={() => onSelect(game)}
           disabled={launching}
+          aria-label={isLive ? `Play ${game.name}` : `${game.name} coming soon`}
           className={`btn-flat ${isLive ? 'btn-primary' : ''}`}
           style={{ width: '100%', padding: '11px 16px' }}
         >
           {isLive ? (
             <>
-              <span>{launching ? `Launching ${game.name}...` : `Play ${game.name}`}</span>
+              <span>{launching ? 'Launching...' : 'Play'}</span>
               <Play size={15} />
             </>
           ) : (
