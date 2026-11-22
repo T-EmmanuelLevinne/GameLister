@@ -102,15 +102,29 @@ export class PlatformAuthApi {
     return data;
   }
 
+  public static async verifyResetCode(
+    email: string,
+    code: string
+  ): Promise<{ success: boolean; username: string; resetToken: string }> {
+    const res = await fetch(`${AUTH_API_BASE}/api/auth/verify-reset-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Invalid or expired confirmation code');
+    return data;
+  }
+
   public static async resetPassword(
     email: string,
-    code: string,
+    resetToken: string,
     newPassword: string
   ): Promise<{ success: boolean; message: string }> {
     const res = await fetch(`${AUTH_API_BASE}/api/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code, newPassword })
+      body: JSON.stringify({ email, resetToken, newPassword })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Password reset failed');

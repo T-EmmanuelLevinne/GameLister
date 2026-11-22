@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, ArrowRight, RefreshCw, Eye, EyeOff, KeyRound, ArrowLeft } from 'lucide-react';
 import { PlatformAuthApi } from '../services/authApi.js';
 import type { PlayerProfile } from '../types/platform.js';
 import Antigravity from './Antigravity.js';
+import CodeSlots, { type CodeSlotsStatus } from './CodeSlots.js';
 
 interface AuthScreenProps {
   onSuccess: (player: PlayerProfile) => void;
 }
 
-type AuthView = 'login' | 'signup' | 'verify_signup' | 'forgot_request' | 'forgot_verify';
+type AuthView =
+  | 'login'
+  | 'signup'
+  | 'verify_signup'
+  | 'forgot_request'
+  | 'forgot_verify_code'
+  | 'forgot_new_password';
 
 type FieldName =
   | 'email'
@@ -35,8 +42,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const [code, setCode] = useState('');
 
   const [resetCode, setResetCode] = useState('');
+  const [verifiedResetUsername, setVerifiedResetUsername] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
+  const [signupCodeStatus, setSignupCodeStatus] = useState<CodeSlotsStatus>('idle');
+  const [resetCodeStatus, setResetCodeStatus] = useState<CodeSlotsStatus>('idle');
 
   const [showPassword, setShowPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
@@ -48,6 +60,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+
+  const signupVerifyInFlightRef = useRef(false);
+  const resetVerifyInFlightRef = useRef(false);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const schedule = (fn: () => void, ms: number) => {
+    const id = setTimeout(fn, ms);
+    timersRef.current.push(id);
+  };
+
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach((id) => clearTimeout(id));
+      timersRef.current = [];
+    };
+  }, []);
 
   const clearAllErrors = () => {
     setFieldErrors({});
@@ -69,6 +97,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     setView(next);
     clearAllErrors();
     setInfoMessage(null);
+    setSignupCodeStatus('idle');
+    setResetCodeStatus('idle');
+    if (next === 'login' || next === 'signup' || next === 'forgot_request') {
+      setResetCode('');
+      setResetToken('');
+      setVerifiedResetUsername('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    }
   };
 
   const mapServerErrorToFields = (msg: string, activeView: AuthView) => {
@@ -90,9 +127,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
       mapped.code = msg;
     } else if (activeView === 'forgot_request') {
       mapped.email = msg;
-    } else if (activeView === 'forgot_verify') {
+    } else if (activeView === 'forgot_verify_code') {
+      mapped.resetCode = msg;
+    } else if (activeView === 'forgot_new_password') {
       if (lower.includes('password')) mapped.newPassword = msg;
-      else mapped.resetCode = msg;
     }
 
     if (Object.keys(mapped).length > 0) {
@@ -147,11 +185,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     setLoading(true);
     try {
       const res = await PlatformAuthApi.signup(trimmedEmail, trimmedUsername, password);
+      setCode('');
+      setSignupCodeStatus('idle');
       setView('verify_signup');
-      setInfoMessage(res.message);
-      if (res.codePreview) {
-        setCode(res.codePreview);
-      }
+      setInfoMessage(
+        res.codePreview ? `${res.message} (Dev code: ${res.codePreview})` : res.message
+      );
     } catch (err: unknown) {
       mapServerErrorToFields(err instanceof Error ? err.message : 'Signup failed', 'signup');
     } finally {
@@ -159,40 +198,60 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     }
   };
 
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitVerifySignup = async (rawCode: string) => {
+    if (signupVerifyInFlightRef.current || signupCodeStatus === 'success') return;
     clearAllErrors();
 
-    const cleanCode = code.trim();
+    const cleanCode = rawCode.trim();
     if (!cleanCode) {
       setFieldErrors({ code: 'Confirmation code is required.' });
+      setSignupCodeStatus('error');
+      schedule(() => setSignupCodeStatus('idle'), 500);
       return;
     }
     if (!/^\d{6}$/.test(cleanCode)) {
       setFieldErrors({ code: 'Please enter the full 6-digit numeric code.' });
+      setSignupCodeStatus('error');
+      schedule(() => setSignupCodeStatus('idle'), 500);
       return;
     }
 
+    signupVerifyInFlightRef.current = true;
     setLoading(true);
     try {
       const res = await PlatformAuthApi.verifyCode(email.trim(), cleanCode);
-      onSuccess(res.player);
+      setSignupCodeStatus('success');
+      schedule(() => {
+        onSuccess(res.player);
+      }, 700);
     } catch (err: unknown) {
+      setSignupCodeStatus('error');
       mapServerErrorToFields(err instanceof Error ? err.message : 'Verification failed', 'verify_signup');
+      schedule(() => {
+        setSignupCodeStatus('idle');
+        setCode('');
+      }, 650);
     } finally {
       setLoading(false);
+      signupVerifyInFlightRef.current = false;
     }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitVerifySignup(code);
   };
 
   const handleResendCode = async () => {
     clearAllErrors();
+    setSignupCodeStatus('idle');
+    setCode('');
     setLoading(true);
     try {
       const res = await PlatformAuthApi.resendCode(email.trim());
-      setInfoMessage(res.message);
-      if (res.codePreview) {
-        setCode(res.codePreview);
-      }
+      setInfoMessage(
+        res.codePreview ? `${res.message} (Dev code: ${res.codePreview})` : res.message
+      );
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Resend failed');
     } finally {
@@ -250,11 +309,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     setLoading(true);
     try {
       const res = await PlatformAuthApi.forgotPassword(trimmedEmail);
-      setInfoMessage(res.message);
-      if (res.codePreview) {
-        setResetCode(res.codePreview);
-      }
-      setView('forgot_verify');
+      setResetCode('');
+      setResetToken('');
+      setVerifiedResetUsername('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setResetCodeStatus('idle');
+      setInfoMessage(
+        res.codePreview ? `${res.message} (Dev code: ${res.codePreview})` : res.message
+      );
+      setView('forgot_verify_code');
     } catch (err: unknown) {
       mapServerErrorToFields(
         err instanceof Error ? err.message : 'Password reset request failed.',
@@ -265,18 +329,68 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     }
   };
 
+  const submitVerifyResetCode = async (rawCode: string) => {
+    if (resetVerifyInFlightRef.current || resetCodeStatus === 'success') return;
+    clearAllErrors();
+
+    const cleanResetCode = rawCode.trim();
+    if (!cleanResetCode) {
+      setFieldErrors({ resetCode: 'Confirmation code is required.' });
+      setResetCodeStatus('error');
+      schedule(() => setResetCodeStatus('idle'), 500);
+      return;
+    }
+    if (!/^\d{6}$/.test(cleanResetCode)) {
+      setFieldErrors({ resetCode: 'Please enter the full 6-digit numeric code.' });
+      setResetCodeStatus('error');
+      schedule(() => setResetCodeStatus('idle'), 500);
+      return;
+    }
+
+    resetVerifyInFlightRef.current = true;
+    setLoading(true);
+    try {
+      const res = await PlatformAuthApi.verifyResetCode(email.trim(), cleanResetCode);
+      setVerifiedResetUsername(res.username);
+      setResetToken(res.resetToken);
+      setResetCodeStatus('success');
+      schedule(() => {
+        setInfoMessage(null);
+        setResetCodeStatus('idle');
+        setView('forgot_new_password');
+      }, 700);
+    } catch (err: unknown) {
+      setResetCodeStatus('error');
+      mapServerErrorToFields(
+        err instanceof Error ? err.message : 'Invalid or expired confirmation code.',
+        'forgot_verify_code'
+      );
+      schedule(() => {
+        setResetCodeStatus('idle');
+        setResetCode('');
+      }, 650);
+    } finally {
+      setLoading(false);
+      resetVerifyInFlightRef.current = false;
+    }
+  };
+
+  const handleVerifyResetCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitVerifyResetCode(resetCode);
+  };
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     clearAllErrors();
 
-    const errors: FieldErrors = {};
-    const cleanResetCode = resetCode.trim();
-
-    if (!cleanResetCode) {
-      errors.resetCode = 'Verification code is required.';
-    } else if (!/^\d{6}$/.test(cleanResetCode)) {
-      errors.resetCode = 'Please enter the full 6-digit numeric code.';
+    if (!resetToken) {
+      setFormError('Your password reset session expired. Please request a new code.');
+      setView('forgot_request');
+      return;
     }
+
+    const errors: FieldErrors = {};
 
     if (!newPassword) {
       errors.newPassword = 'New password is required.';
@@ -297,16 +411,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
     setLoading(true);
     try {
-      const res = await PlatformAuthApi.resetPassword(email.trim(), cleanResetCode, newPassword);
+      const res = await PlatformAuthApi.resetPassword(email.trim(), resetToken, newPassword);
       setInfoMessage(res.message || 'Password reset successfully. You may now log in.');
       setPassword('');
       setRepeatPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
       setResetCode('');
+      setResetToken('');
+      setVerifiedResetUsername('');
       setView('login');
     } catch (err: unknown) {
-      mapServerErrorToFields(err instanceof Error ? err.message : 'Password reset failed.', 'forgot_verify');
+      mapServerErrorToFields(
+        err instanceof Error ? err.message : 'Password reset failed.',
+        'forgot_new_password'
+      );
     } finally {
       setLoading(false);
     }
@@ -314,13 +433,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
   const handleResendResetCode = async () => {
     clearAllErrors();
+    setResetCodeStatus('idle');
+    setResetCode('');
     setLoading(true);
     try {
       const res = await PlatformAuthApi.forgotPassword(email.trim());
-      setInfoMessage(res.message);
-      if (res.codePreview) {
-        setResetCode(res.codePreview);
-      }
+      setInfoMessage(
+        res.codePreview ? `${res.message} (Dev code: ${res.codePreview})` : res.message
+      );
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Resend reset code failed.');
     } finally {
@@ -809,32 +929,42 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
                   fontSize: '0.75rem',
                   fontWeight: 600,
                   color: fieldErrors.code ? '#DC2626' : '#09090B',
-                  marginBottom: 6,
+                  marginBottom: 10,
                   display: 'block'
                 }}
               >
                 6-Digit Confirmation Code
               </label>
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="123456"
+              <CodeSlots
+                length={6}
                 value={code}
-                onChange={(e) => {
-                  setCode(e.target.value.replace(/\D/g, ''));
-                  clearFieldError('code');
+                onChange={(nextCode) => {
+                  setCode(nextCode);
+                  if (nextCode.length > 0) {
+                    clearFieldError('code');
+                    if (signupCodeStatus === 'error') setSignupCodeStatus('idle');
+                  }
                 }}
-                className={inputClass('code')}
-                style={{
-                  textAlign: 'center',
-                  fontSize: '1.5rem',
-                  letterSpacing: '0.3em',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700
+                onComplete={(completedCode) => {
+                  submitVerifySignup(completedCode);
                 }}
-                aria-invalid={Boolean(fieldErrors.code)}
+                status={signupCodeStatus}
+                disabled={loading || signupCodeStatus === 'success'}
+                autoFocus
+                accentColor="#09090B"
+                successColor="#10B981"
+                inkColor="#09090B"
+                slotColor="#F4F4F5"
+                borderColor="#D4D4D8"
+                digitColor="#FFFFFF"
+                dangerColor="#DC2626"
+                ariaLabel="Email verification code"
               />
-              {fieldErrors.code && <div className="field-error-text">{fieldErrors.code}</div>}
+              {fieldErrors.code && (
+                <div className="field-error-text" style={{ textAlign: 'center', marginTop: 8 }}>
+                  {fieldErrors.code}
+                </div>
+              )}
             </div>
 
             {formError && (
@@ -843,11 +973,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || signupCodeStatus === 'success'}
               className="btn-flat auth-btn-black"
               style={{ width: '100%' }}
             >
-              {loading ? 'Verifying...' : 'Verify & Enter Hub'}
+              {signupCodeStatus === 'success'
+                ? 'Verified!'
+                : loading
+                  ? 'Verifying...'
+                  : 'Verify & Enter Hub'}
             </button>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
@@ -992,8 +1126,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           </form>
         )}
 
-        {view === 'forgot_verify' && (
-          <form onSubmit={handleResetPassword} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {view === 'forgot_verify_code' && Boolean(email.trim()) && (
+          <form onSubmit={handleVerifyResetCode} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div
                 style={{
@@ -1012,10 +1146,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
               </div>
               <div>
                 <h3 className="modal-title" style={{ fontSize: '1rem', marginBottom: 2 }}>
-                  Set New Password
+                  Verify Reset Code
                 </h3>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Enter the 6-digit code sent to <strong style={{ color: '#09090B' }}>{email}</strong>
+                  Enter the 6-digit confirmation code sent to <strong style={{ color: '#09090B' }}>{email}</strong>
                 </p>
               </div>
             </div>
@@ -1041,32 +1175,204 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
                   fontSize: '0.75rem',
                   fontWeight: 600,
                   color: fieldErrors.resetCode ? '#DC2626' : '#09090B',
-                  marginBottom: 4,
+                  marginBottom: 10,
                   display: 'block'
                 }}
               >
-                6-Digit Verification Code
+                6-Digit Confirmation Code
               </label>
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="123456"
+              <CodeSlots
+                length={6}
                 value={resetCode}
-                onChange={(e) => {
-                  setResetCode(e.target.value.replace(/\D/g, ''));
-                  clearFieldError('resetCode');
+                onChange={(nextCode) => {
+                  setResetCode(nextCode);
+                  if (nextCode.length > 0) {
+                    clearFieldError('resetCode');
+                    if (resetCodeStatus === 'error') setResetCodeStatus('idle');
+                  }
                 }}
-                className={inputClass('resetCode')}
-                style={{
-                  textAlign: 'center',
-                  fontSize: '1.4rem',
-                  letterSpacing: '0.25em',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 700
+                onComplete={(completedCode) => {
+                  submitVerifyResetCode(completedCode);
                 }}
-                aria-invalid={Boolean(fieldErrors.resetCode)}
+                status={resetCodeStatus}
+                disabled={loading || resetCodeStatus === 'success'}
+                autoFocus
+                accentColor="#09090B"
+                successColor="#10B981"
+                inkColor="#09090B"
+                slotColor="#F4F4F5"
+                borderColor="#D4D4D8"
+                digitColor="#FFFFFF"
+                dangerColor="#DC2626"
+                ariaLabel="Password reset confirmation code"
               />
-              {fieldErrors.resetCode && <div className="field-error-text">{fieldErrors.resetCode}</div>}
+              {fieldErrors.resetCode && (
+                <div className="field-error-text" style={{ textAlign: 'center', marginTop: 8 }}>
+                  {fieldErrors.resetCode}
+                </div>
+              )}
+            </div>
+
+            {formError && (
+              <div style={{ color: '#DC2626', fontSize: '0.8125rem', textAlign: 'center' }}>{formError}</div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || resetCodeStatus === 'success'}
+              className="btn-flat auth-btn-black"
+              style={{ width: '100%' }}
+            >
+              {resetCodeStatus === 'success'
+                ? 'Code Verified!'
+                : loading
+                  ? 'Verifying...'
+                  : 'Verify Code'}
+              {resetCodeStatus !== 'success' && <ArrowRight size={16} />}
+            </button>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={handleResendResetCode}
+                disabled={loading || resetCodeStatus === 'success'}
+                className="btn-flat"
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '6px 10px',
+                  background: 'none',
+                  border: 'none',
+                  boxShadow: 'none',
+                  color: '#09090B'
+                }}
+              >
+                <RefreshCw size={12} />
+                Resend Code
+              </button>
+
+              <button
+                type="button"
+                onClick={() => switchView('forgot_request')}
+                className="btn-flat"
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '6px 10px',
+                  background: 'none',
+                  border: 'none',
+                  boxShadow: 'none',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                <ArrowLeft size={14} />
+                Change Email
+              </button>
+            </div>
+          </form>
+        )}
+
+        {view === 'forgot_new_password' && Boolean(resetToken && verifiedResetUsername) && (
+          <form onSubmit={handleResetPassword} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 'var(--radius-md)',
+                  background: '#09090B',
+                  border: '1px solid #09090B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                <KeyRound size={20} color="#FFFFFF" />
+              </div>
+              <div>
+                <h3 className="modal-title" style={{ fontSize: '1rem', marginBottom: 2 }}>
+                  Set New Password
+                </h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Identity verified. Choose a new password for your account.
+                </p>
+              </div>
+            </div>
+
+            {/* Verified Account Username Banner */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-md)',
+                background: '#FAFAFA',
+                border: '1px solid #E4E4E7'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    background: '#09090B',
+                    color: '#FFFFFF',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.84rem',
+                    fontWeight: 800,
+                    flexShrink: 0
+                  }}
+                >
+                  {(verifiedResetUsername.trim()[0] || 'P').toUpperCase()}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: '0.9rem',
+                      fontWeight: 800,
+                      color: '#09090B',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {verifiedResetUsername}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.72rem',
+                      color: 'var(--text-secondary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {email}
+                  </div>
+                </div>
+              </div>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  color: '#047857',
+                  background: '#ECFDF5',
+                  border: '1px solid #A7F3D0',
+                  borderRadius: 9999,
+                  padding: '3px 8px',
+                  flexShrink: 0
+                }}
+              >
+                <ShieldCheck size={12} />
+                Verified
+              </span>
             </div>
 
             <div>
@@ -1084,6 +1390,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
               <div style={{ position: 'relative' }}>
                 <input
                   type={showNewPassword ? 'text' : 'password'}
+                  autoFocus
                   placeholder="At least 6 characters"
                   value={newPassword}
                   onChange={(e) => {
@@ -1177,25 +1484,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
               <ArrowRight size={16} />
             </button>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-              <button
-                type="button"
-                onClick={handleResendResetCode}
-                disabled={loading}
-                className="btn-flat"
-                style={{
-                  fontSize: '0.75rem',
-                  padding: '6px 10px',
-                  background: 'none',
-                  border: 'none',
-                  boxShadow: 'none',
-                  color: '#09090B'
-                }}
-              >
-                <RefreshCw size={12} />
-                Resend Code
-              </button>
-
+            <div style={{ textAlign: 'center', marginTop: 4 }}>
               <button
                 type="button"
                 onClick={() => switchView('login')}
