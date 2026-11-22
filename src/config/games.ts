@@ -21,6 +21,14 @@ const defaultGunRouletteApi = import.meta.env.PROD
   ? 'https://backend-roullete-service.onrender.com'
   : `http://${getLocalHost()}:3001`;
 
+const defaultWallRushUrl = import.meta.env.PROD
+  ? null
+  : `http://${getLocalHost()}:5175`;
+
+const defaultWallRushApi = import.meta.env.PROD
+  ? null
+  : `http://${getLocalHost()}:3003`;
+
 /**
  * Declarative Game Registry for Marble Games.
  * Each game connects to its own isolated dedicated server to prevent backend bloat.
@@ -45,8 +53,26 @@ export const GAME_CATALOG: GameCatalogEntry[] = [
     accentBorder: '#A7F3D0'
   },
   {
-    id: 'tribe-rush',
+    id: 'wall-rush',
     order: 2,
+    name: 'WallRush',
+    tagline: 'Tactical 9x9 marble labyrinth & barrier race',
+    description:
+      'Race your marble across a 9x9 grid while deploying laser barriers to force rivals into winding detours. Features 1v1 Duel, 4-Player Crossfire, and Overdrive Rush with momentum pads and phased walls.',
+    genre: 'Tactical Grid Strategy',
+    playerRange: '2 or 4 Players',
+    status: 'LIVE',
+    modes: ['Classic 1v1', 'Classic 4P', 'Overdrive Rush'],
+    frontendUrl: cleanUrl(import.meta.env.VITE_WALLRUSH_URL) ?? defaultWallRushUrl,
+    serverApiUrl: cleanUrl(import.meta.env.VITE_WALLRUSH_API_URL) ?? defaultWallRushApi,
+    serverLabel: 'Dedicated WallRush Server',
+    accentColor: '#10B981',
+    accentBg: '#ECFDF5',
+    accentBorder: '#A7F3D0'
+  },
+  {
+    id: 'tribe-rush',
+    order: 3,
     name: 'Tribe Rush',
     tagline: 'Upcoming multiplayer title on its own dedicated server',
     description:

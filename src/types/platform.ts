@@ -20,7 +20,7 @@ export interface PlayerProfile {
 
 export type GameStatus = 'LIVE' | 'COMING_SOON' | 'MAINTENANCE';
 
-export type GameId = 'gun-roulette' | 'tribe-rush';
+export type GameId = 'gun-roulette' | 'wall-rush' | 'tribe-rush';
 
 export interface GameCatalogEntry {
   id: GameId;
