@@ -254,4 +254,39 @@ export class PlatformAuthApi {
       clearTimeout(timeout);
     }
   }
+
+  /**
+   * Fetch the signed-in player's independent ELO and W/L record from a dedicated game server
+   * (e.g., WallRush Server) using the shared Marble Games session token.
+   */
+  public static async fetchGameProfileRating(
+    serverApiUrl: string
+  ): Promise<{ elo: number; wins: number; losses: number } | null> {
+    const token = this.getToken();
+    if (!token || !serverApiUrl) return null;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const res = await fetch(`${serverApiUrl}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      if (!res.ok) return null;
+      const data = await res.json().catch(() => null);
+      if (typeof data?.player?.elo !== 'number') return null;
+
+      return {
+        elo: data.player.elo,
+        wins: Number(data.player.wins || 0),
+        losses: Number(data.player.losses || 0)
+      };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
 }

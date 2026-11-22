@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RefreshCw, X, Clock, AlertCircle, Search } from 'lucide-react';
 import { GAME_CATALOG } from '../config/games.js';
 import { PlatformAuthApi } from '../services/authApi.js';
@@ -27,44 +27,96 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
   const [filter, setFilter] = useState<CatalogFilter>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [telemetryMap, setTelemetryMap] = useState<Record<string, GameServerTelemetry>>({});
+  const [perGameRatings, setPerGameRatings] = useState<
+    Record<string, { elo: number; wins: number; losses: number }>
+  >({});
+  const fetchedRatingRef = useRef<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [launchingGameId, setLaunchingGameId] = useState<string | null>(null);
   const [previewGame, setPreviewGame] = useState<GameCatalogEntry | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const probeAllServers = useCallback(async (silent: boolean = false) => {
-    if (!silent) setRefreshing(true);
-    const liveGames = GAME_CATALOG.filter((g) => g.status === 'LIVE' && g.serverApiUrl);
-
-    if (!silent) {
-      setTelemetryMap((prev) => {
-        const next = { ...prev };
-        for (const g of liveGames) {
-          next[g.id] = {
-            online: prev[g.id]?.online ?? false,
-            checking: prev[g.id] ? false : true,
-            pingMs: prev[g.id]?.pingMs ?? null,
-            activeLobbies: prev[g.id]?.activeLobbies ?? 0,
-            activePlayers: prev[g.id]?.activePlayers ?? 0
-          };
-        }
-        return next;
-      });
-    }
+  const fetchIndependentRatings = useCallback(async (onlyGameIds?: string[]) => {
+    const independentGames = GAME_CATALOG.filter(
+      (g) =>
+        g.status === 'LIVE' &&
+        g.id !== 'gun-roulette' &&
+        Boolean(g.serverApiUrl) &&
+        (!onlyGameIds || onlyGameIds.includes(g.id))
+    );
+    if (independentGames.length === 0) return;
 
     await Promise.all(
-      liveGames.map(async (game) => {
+      independentGames.map(async (game) => {
         if (!game.serverApiUrl) return;
-        const result = await PlatformAuthApi.probeGameServer(game.serverApiUrl);
-        setTelemetryMap((prev) => ({
-          ...prev,
-          [game.id]: result
-        }));
+        const rating = await PlatformAuthApi.fetchGameProfileRating(game.serverApiUrl);
+        if (rating) {
+          fetchedRatingRef.current.add(game.id);
+          setPerGameRatings((prev) => ({
+            ...prev,
+            [game.id]: rating
+          }));
+        }
       })
     );
-
-    if (!silent) setRefreshing(false);
   }, []);
+
+  const probeAllServers = useCallback(
+    async (silent: boolean = false) => {
+      if (!silent) setRefreshing(true);
+      const liveGames = GAME_CATALOG.filter((g) => g.status === 'LIVE' && g.serverApiUrl);
+
+      if (!silent) {
+        setTelemetryMap((prev) => {
+          const next = { ...prev };
+          for (const g of liveGames) {
+            next[g.id] = {
+              online: prev[g.id]?.online ?? false,
+              checking: prev[g.id] ? false : true,
+              pingMs: prev[g.id]?.pingMs ?? null,
+              activeLobbies: prev[g.id]?.activeLobbies ?? 0,
+              activePlayers: prev[g.id]?.activePlayers ?? 0
+            };
+          }
+          return next;
+        });
+      }
+
+      const newlyOnlineForRating: string[] = [];
+
+      await Promise.all(
+        liveGames.map(async (game) => {
+          if (!game.serverApiUrl) return;
+          const result = await PlatformAuthApi.probeGameServer(game.serverApiUrl);
+          setTelemetryMap((prev) => ({
+            ...prev,
+            [game.id]: result
+          }));
+          if (
+            result.online &&
+            game.id !== 'gun-roulette' &&
+            !fetchedRatingRef.current.has(game.id)
+          ) {
+            newlyOnlineForRating.push(game.id);
+          }
+        })
+      );
+
+      if (!silent) {
+        await fetchIndependentRatings();
+        setRefreshing(false);
+      } else if (newlyOnlineForRating.length > 0) {
+        await fetchIndependentRatings(newlyOnlineForRating);
+      }
+    },
+    [fetchIndependentRatings]
+  );
+
+  useEffect(() => {
+    fetchedRatingRef.current.clear();
+    setPerGameRatings({});
+    fetchIndependentRatings();
+  }, [player.id, fetchIndependentRatings]);
 
   useEffect(() => {
     probeAllServers(false);
@@ -73,8 +125,21 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
         probeAllServers(true);
       }
     }, 4000);
-    return () => clearInterval(interval);
-  }, [probeAllServers]);
+
+    const handleReturnFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchIndependentRatings();
+      }
+    };
+    window.addEventListener('visibilitychange', handleReturnFocus);
+    window.addEventListener('focus', handleReturnFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('visibilitychange', handleReturnFocus);
+      window.removeEventListener('focus', handleReturnFocus);
+    };
+  }, [probeAllServers, fetchIndependentRatings]);
 
   const handleSelectGame = async (game: GameCatalogEntry) => {
     setNotice(null);
@@ -85,8 +150,10 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
     }
 
     if (!game.frontendUrl) {
+      const envVarHint =
+        game.id === 'wall-rush' ? 'VITE_WALLRUSH_URL' : 'VITE_GUN_ROULETTE_URL';
       setNotice(
-        `${game.name} launch URL is not configured yet. Set VITE_GUN_ROULETTE_URL in GameLister/.env.`
+        `${game.name} launch URL is not configured yet. Set ${envVarHint} in GameLister environment variables.`
       );
       return;
     }
@@ -247,7 +314,7 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
               perGameRating={
                 game.id === 'gun-roulette'
                   ? { elo: player.elo, wins: player.wins, losses: player.losses }
-                  : undefined
+                  : perGameRatings[game.id]
               }
               isFavorite={favoriteGameIds.has(game.id)}
               togglingFavorite={togglingFavoriteId === game.id}
