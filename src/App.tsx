@@ -266,17 +266,23 @@ export const App: React.FC = () => {
 
   if (loadingProfile) {
     return (
-      <div
-        style={{
-          height: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#09090B',
-          color: '#A1A1AA'
-        }}
-      >
-        <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>Connecting to Marble Games...</div>
+      <div className="connect-screen" role="status" aria-live="polite">
+        <div className="connect-card">
+          <div className="connect-emblem is-circle">
+            <img
+              src="/logo.png"
+              alt="Marble Games"
+              width={48}
+              height={48}
+              className="connect-emblem-img is-circle"
+            />
+          </div>
+          <h1 className="connect-title">MARBLE GAMES</h1>
+          <p className="connect-status">Connecting to Marble Games...</p>
+          <div className="connect-bar-track" aria-hidden="true">
+            <div className="connect-bar-fill" />
+          </div>
+        </div>
       </div>
     );
   }

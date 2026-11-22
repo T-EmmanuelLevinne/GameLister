@@ -4223,3 +4223,142 @@ input {
     height: 40px;
   }
 }
+
+/* ==========================================================
+   UNIFIED CONNECTING SCREEN (Shared Across Platform)
+   ========================================================== */
+@keyframes connect-fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes connect-emblem-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(16, 185, 129, 0.24),
+      0 10px 26px rgba(0, 0, 0, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 0 0 8px rgba(16, 185, 129, 0),
+      0 10px 26px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@keyframes connect-bar-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+.connect-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: #09090B;
+  background-image:
+    radial-gradient(circle at 50% 42%, rgba(16, 185, 129, 0.1) 0%, transparent 56%),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 100% 100%, 44px 44px, 44px 44px;
+  color: #FFFFFF;
+}
+
+.connect-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  animation: connect-fade-up 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.connect-emblem {
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  background: #111115;
+  border: 1.5px solid #27272A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: connect-emblem-pulse 2.2s ease-in-out infinite;
+}
+
+.connect-emblem.is-circle {
+  border-radius: 50%;
+}
+
+.connect-emblem-img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+
+.connect-emblem-img.is-circle {
+  border-radius: 50%;
+}
+
+.connect-title {
+  margin-top: 4px;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #FFFFFF;
+}
+
+.connect-status {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #A1A1AA;
+  line-height: 1.5;
+}
+
+.connect-bar-track {
+  position: relative;
+  width: 184px;
+  height: 3px;
+  border-radius: 9999px;
+  background: #18181B;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.connect-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 42%;
+  border-radius: 9999px;
+  background: #10B981;
+  animation: connect-bar-slide 1.25s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connect-card,
+  .connect-emblem,
+  .connect-bar-fill {
+    animation: none !important;
+  }
+}
