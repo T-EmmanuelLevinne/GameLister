@@ -269,7 +269,7 @@ export class PlatformAuthApi {
     const timeout = setTimeout(() => controller.abort(), 5000);
 
     try {
-      const res = await fetch(`${serverApiUrl}/api/auth/me`, {
+      const res = await fetch(`${serverApiUrl}/api/auth/me?readonly=1`, {
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal,
         cache: 'no-store'
