@@ -38,13 +38,28 @@ export const GAME_CATALOG: GameCatalogEntry[] = [
     id: 'gun-roulette',
     order: 1,
     name: 'Gun Roulette',
-    tagline: 'Server-authoritative social elimination roulette',
-    description:
-      'Multiplayer table roulette with public and hidden kill modes, bottle spinning, and tactical 1v1 buckshot showdowns',
+    tagline: 'High-stakes table roulette',
+    description: 'Spin the chamber, read the room, and be the last marble at the table.',
+    overview:
+      'A tense multiplayer table game where every trigger pull could jam or fire. Read your opponents, track who holds the gun, and outlast everyone at the table.',
     genre: 'Social Elimination',
     playerRange: '2-8 Players',
     status: 'LIVE',
-    modes: ['Hide Roulette', 'Bottle Roulette', 'Buckshot Roulette'],
+    modes: ['Hide', 'Bottle', 'Buckshot'],
+    modeDetails: [
+      {
+        name: 'Hide Roulette',
+        summary: 'Choose whether to strike in the open or keep your identity hidden from the table.'
+      },
+      {
+        name: 'Bottle Roulette',
+        summary: 'Charge and spin the center bottle to decide who takes the gun next.'
+      },
+      {
+        name: 'Buckshot Roulette',
+        summary: 'Head-to-head 1v1 shotgun duel with live or blank shells and tactical items.'
+      }
+    ],
     frontendUrl: cleanUrl(import.meta.env.VITE_GUN_ROULETTE_URL) ?? defaultGunRouletteUrl,
     serverApiUrl: cleanUrl(import.meta.env.VITE_GUN_ROULETTE_API_URL) ?? defaultGunRouletteApi,
     serverLabel: 'Dedicated Roulette Server',
@@ -56,13 +71,24 @@ export const GAME_CATALOG: GameCatalogEntry[] = [
     id: 'wall-rush',
     order: 2,
     name: 'WallRush',
-    tagline: 'Tactical 9x9 marble labyrinth & barrier race',
-    description:
-      'Race your marble across a 9x9 grid while deploying laser barriers to force rivals into winding detours. Features 1v1 Duel, 4-Player Crossfire, and Overdrive Rush with momentum pads and phased walls.',
+    tagline: '9x9 marble maze race',
+    description: 'Block your rivals, cut off their route, and race your marble to the goal first.',
+    overview:
+      'A turn-based 9x9 strategy board. On your turn, either advance your marble or place a barrier to reroute opponents—without ever blocking them off completely.',
     genre: 'Tactical Grid Strategy',
     playerRange: '2 or 4 Players',
     status: 'LIVE',
-    modes: ['Classic 1v1', 'Classic 4P', 'Overdrive Rush'],
+    modes: ['Classic 1v1', 'Classic 4P', 'Overdrive'],
+    modeDetails: [
+      {
+        name: 'Classic (1v1 & 4P)',
+        summary: 'Permanent barriers. First marble to step onto the yellow center square wins.'
+      },
+      {
+        name: 'Overdrive (1v1 & 4P)',
+        summary: 'Race to your colored opposite edge with phased walls that fade after 6 rounds.'
+      }
+    ],
     frontendUrl: cleanUrl(import.meta.env.VITE_WALLRUSH_URL) ?? defaultWallRushUrl,
     serverApiUrl: cleanUrl(import.meta.env.VITE_WALLRUSH_API_URL) ?? defaultWallRushApi,
     serverLabel: 'Dedicated WallRush Server',
@@ -74,13 +100,14 @@ export const GAME_CATALOG: GameCatalogEntry[] = [
     id: 'tribe-rush',
     order: 3,
     name: 'Tribe Rush',
-    tagline: 'Upcoming multiplayer title on its own dedicated server',
-    description:
-      'Currently in preparation. Tribe Rush will run on a completely separate game server while automatically recognizing your Marble Games account.',
+    tagline: 'Upcoming multiplayer strategy',
+    description: 'A new multiplayer strategy title is currently in the works.',
+    overview:
+      'Tribe Rush will run on its own dedicated server with independent rankings while automatically using your Marble Games account.',
     genre: 'Multiplayer Strategy',
     playerRange: 'TBA',
     status: 'COMING_SOON',
-    modes: ['Awaiting Launch'],
+    modes: ['Coming Soon'],
     frontendUrl: cleanUrl(import.meta.env.VITE_TRIBE_RUSH_URL),
     serverApiUrl: cleanUrl(import.meta.env.VITE_TRIBE_RUSH_API_URL),
     serverLabel: 'Dedicated Server Pending',

@@ -204,7 +204,17 @@ export class PlatformAuthApi {
         }).then(async (res) => {
           const pingMs = Math.max(1, Math.round(performance.now() - pingStart));
           const data = res.ok ? await res.json().catch(() => null) : null;
-          return { ok: res.ok && data?.status === 'ok', pingMs, version: data?.version as string | undefined };
+          return {
+            ok: res.ok && data?.status === 'ok',
+            pingMs,
+            version: data?.version as string | undefined,
+            onlinePlayers:
+              typeof data?.onlinePlayers === 'number'
+                ? data.onlinePlayers
+                : typeof data?.activePlayers === 'number'
+                  ? data.activePlayers
+                  : null
+          };
         }),
         fetch(`${serverApiUrl}/api/lobbies`, {
           signal: controller.signal,
@@ -215,31 +225,37 @@ export class PlatformAuthApi {
       let online = false;
       let pingMs: number | null = null;
       let serverVersion: string | undefined;
+      let healthOnlinePlayers: number | null = null;
       if (healthRes.status === 'fulfilled' && healthRes.value.ok) {
         online = true;
         pingMs = healthRes.value.pingMs;
         serverVersion = healthRes.value.version;
+        healthOnlinePlayers = healthRes.value.onlinePlayers;
       }
 
       let activeLobbies = 0;
-      let activePlayers = 0;
+      let lobbyPlayers = 0;
       if (lobbiesRes.status === 'fulfilled' && lobbiesRes.value.ok) {
         const lobbyData = await lobbiesRes.value.json().catch(() => null);
         if (Array.isArray(lobbyData?.lobbies)) {
           activeLobbies = lobbyData.lobbies.length;
-          activePlayers = lobbyData.lobbies.reduce(
+          lobbyPlayers = lobbyData.lobbies.reduce(
             (sum: number, lobby: { playerCount?: number }) => sum + (lobby.playerCount || 0),
             0
           );
         }
       }
 
+      const onlinePlayers =
+        healthOnlinePlayers !== null ? Math.max(healthOnlinePlayers, lobbyPlayers) : lobbyPlayers;
+
       return {
         online,
         checking: false,
         pingMs,
         activeLobbies,
-        activePlayers,
+        activePlayers: onlinePlayers,
+        onlinePlayers,
         serverVersion
       };
     } catch {
@@ -248,7 +264,8 @@ export class PlatformAuthApi {
         checking: false,
         pingMs: null,
         activeLobbies: 0,
-        activePlayers: 0
+        activePlayers: 0,
+        onlinePlayers: 0
       };
     } finally {
       clearTimeout(timeout);

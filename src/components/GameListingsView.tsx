@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { RefreshCw, X, Clock, AlertCircle, Search } from 'lucide-react';
+import { RefreshCw, X, Clock, AlertCircle, Search, Play, Users } from 'lucide-react';
 import { GAME_CATALOG } from '../config/games.js';
 import { PlatformAuthApi } from '../services/authApi.js';
 import type { GameCatalogEntry, GameId, GameServerTelemetry, PlayerProfile } from '../types/platform.js';
 import { GameCard } from './GameCard.js';
+import { GameIcon } from './GameArtwork.js';
 
 interface GameListingsViewProps {
   player: PlayerProfile;
@@ -34,6 +35,7 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const [launchingGameId, setLaunchingGameId] = useState<string | null>(null);
   const [previewGame, setPreviewGame] = useState<GameCatalogEntry | null>(null);
+  const [infoGame, setInfoGame] = useState<GameCatalogEntry | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const fetchIndependentRatings = useCallback(async (onlyGameIds?: string[]) => {
@@ -320,6 +322,7 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
               togglingFavorite={togglingFavoriteId === game.id}
               launching={launchingGameId === game.id}
               onToggleFavorite={onToggleFavorite}
+              onOpenInfo={(target) => setInfoGame(target)}
               onSelect={handleSelectGame}
             />
           ))}
@@ -430,6 +433,86 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
             >
               Got It
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Minimalist Game Info Modal (Triggered by Card Info Icon) */}
+      {infoGame && (
+        <div
+          className="modal-overlay"
+          onClick={() => setInfoGame(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`About ${infoGame.name}`}
+        >
+          <div className="modal-card game-info-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="game-info-modal-head">
+              <div className="game-info-modal-title-group">
+                <GameIcon gameId={infoGame.id} size={34} />
+                <div>
+                  <h3 className="modal-title" style={{ marginBottom: 2 }}>
+                    {infoGame.name}
+                  </h3>
+                  <div className="game-info-modal-meta">
+                    <Users size={12} />
+                    <span>{infoGame.playerRange}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInfoGame(null)}
+                className="acct-icon-close"
+                aria-label="Close info"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="game-info-modal-overview">
+              {infoGame.overview || infoGame.description}
+            </p>
+
+            {infoGame.modeDetails && infoGame.modeDetails.length > 0 && (
+              <div className="game-info-modes-list">
+                <div className="acct-group-label">MODES</div>
+                {infoGame.modeDetails.map((mode) => (
+                  <div key={mode.name} className="game-info-mode-row">
+                    <div className="game-info-mode-name">{mode.name}</div>
+                    <p className="game-info-mode-desc">{mode.summary}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="game-info-modal-footer">
+              {infoGame.status === 'LIVE' ? (
+                <button
+                  type="button"
+                  disabled={launchingGameId === infoGame.id}
+                  onClick={() => {
+                    const target = infoGame;
+                    setInfoGame(null);
+                    handleSelectGame(target);
+                  }}
+                  className="btn-flat btn-primary"
+                  style={{ width: '100%', padding: '10px 16px' }}
+                >
+                  <span>{launchingGameId === infoGame.id ? 'Launching...' : 'Play'}</span>
+                  <Play size={14} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setInfoGame(null)}
+                  className="btn-flat"
+                  style={{ width: '100%', padding: '10px 16px' }}
+                >
+                  Got It
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

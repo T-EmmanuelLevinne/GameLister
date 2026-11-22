@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Clock, Users, Layers, Star } from 'lucide-react';
+import { Play, Clock, Users, Star, Info } from 'lucide-react';
 import type { GameCatalogEntry, GameId, GameServerTelemetry } from '../types/platform.js';
 import { GameArtwork } from './GameArtwork.js';
 
@@ -11,6 +11,7 @@ interface GameCardProps {
   togglingFavorite?: boolean;
   launching?: boolean;
   onToggleFavorite?: (gameId: GameId) => void;
+  onOpenInfo?: (game: GameCatalogEntry) => void;
   onSelect: (game: GameCatalogEntry) => void;
 }
 
@@ -22,6 +23,7 @@ export const GameCard: React.FC<GameCardProps> = ({
   togglingFavorite = false,
   launching = false,
   onToggleFavorite,
+  onOpenInfo,
   onSelect
 }) => {
   const isLive = game.status === 'LIVE';
@@ -29,7 +31,11 @@ export const GameCard: React.FC<GameCardProps> = ({
   const isOnline = isLive && Boolean(telemetry?.online);
 
   const totalMatches = perGameRating ? perGameRating.wins + perGameRating.losses : 0;
-  const winRate = perGameRating && totalMatches > 0 ? Math.round((perGameRating.wins / totalMatches) * 100) : 0;
+  const winRate =
+    perGameRating && totalMatches > 0
+      ? Math.round((perGameRating.wins / totalMatches) * 100)
+      : 0;
+  const onlineCount = telemetry?.onlinePlayers ?? telemetry?.activePlayers ?? 0;
 
   const renderStatusPill = () => {
     if (!isLive) {
@@ -103,69 +109,72 @@ export const GameCard: React.FC<GameCardProps> = ({
       </div>
 
       <div className="game-card-body">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-          <div>
-            <h2
-              style={{
-                fontSize: '1.25rem',
-                fontWeight: 800,
-                letterSpacing: '-0.01em',
-                color: 'var(--text-primary)'
-              }}
-            >
-              {game.name}
-            </h2>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: 3 }}>
-              {game.tagline}
-            </p>
-          </div>
+        {/* Minimalist Title + Info Icon + Favorite Star */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 10
+          }}
+        >
+          <h2
+            style={{
+              fontSize: '1.2rem',
+              fontWeight: 800,
+              letterSpacing: '-0.01em',
+              color: 'var(--text-primary)'
+            }}
+          >
+            {game.name}
+          </h2>
 
-          {onToggleFavorite && (
-            <button
-              type="button"
-              onClick={() => onToggleFavorite(game.id)}
-              disabled={togglingFavorite}
-              className={`favorite-star-btn ${isFavorite ? 'is-favorited' : ''}`}
-              title={isFavorite ? 'Remove from Game Library' : 'Add to Game Library'}
-              aria-label={isFavorite ? `Unfavorite ${game.name}` : `Favorite ${game.name}`}
-              aria-pressed={isFavorite}
-            >
-              <Star
-                size={17}
-                color={isFavorite ? '#EAB308' : 'currentColor'}
-                fill={isFavorite ? '#FACC15' : 'none'}
-              />
-            </button>
-          )}
+          <div className="game-card-icon-actions">
+            {onOpenInfo && (
+              <button
+                type="button"
+                onClick={() => onOpenInfo(game)}
+                className="game-info-btn"
+                title={`About ${game.name}`}
+                aria-label={`View info and modes for ${game.name}`}
+              >
+                <Info size={16} />
+              </button>
+            )}
+
+            {onToggleFavorite && (
+              <button
+                type="button"
+                onClick={() => onToggleFavorite(game.id)}
+                disabled={togglingFavorite}
+                className={`favorite-star-btn ${isFavorite ? 'is-favorited' : ''}`}
+                title={isFavorite ? 'Remove from Game Library' : 'Add to Game Library'}
+                aria-label={isFavorite ? `Unfavorite ${game.name}` : `Favorite ${game.name}`}
+                aria-pressed={isFavorite}
+              >
+                <Star
+                  size={16}
+                  color={isFavorite ? '#EAB308' : 'currentColor'}
+                  fill={isFavorite ? '#FACC15' : 'none'}
+                />
+              </button>
+            )}
+          </div>
         </div>
 
-        <p style={{ fontSize: '0.84rem', lineHeight: 1.55, color: 'var(--text-secondary)' }}>
+        {/* Concise Humanized 1-Line Hook */}
+        <p style={{ fontSize: '0.84rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
           {game.description}
         </p>
 
-        {/* Modes */}
+        {/* Minimal Player Range + Modes (Genre pill removed) */}
         <div className="mode-tags">
           <span
             className="mode-tag"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 5,
-              background: '#FFFFFF',
-              color: 'var(--text-secondary)'
-            }}
-          >
-            <Layers size={12} />
-            {game.genre}
-          </span>
-          <span
-            className="mode-tag"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              background: '#FFFFFF',
-              color: 'var(--text-secondary)'
+              gap: 5
             }}
           >
             <Users size={12} />
@@ -178,9 +187,16 @@ export const GameCard: React.FC<GameCardProps> = ({
           ))}
         </div>
 
-        {/* Per-Game Rating (left) + Live Lobbies & Player Counts (right) */}
+        {/* Per-Game Rating (left) + Live Lobbies & Online Count (right) */}
         <div className="server-bar" style={{ marginTop: 'auto' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)'
+            }}
+          >
             {perGameRating ? (
               <span>
                 ELO {perGameRating.elo} · {winRate}% WR
@@ -192,17 +208,37 @@ export const GameCard: React.FC<GameCardProps> = ({
 
           {isLive && telemetry && !telemetry.checking && telemetry.online ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', fontWeight: 700, color: '#047857' }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  color: '#047857'
+                }}
+              >
                 {telemetry.activeLobbies} {telemetry.activeLobbies === 1 ? 'Lobby' : 'Lobbies'}
               </span>
               <span style={{ color: 'var(--border-strong)' }}>|</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {telemetry.activePlayers} {telemetry.activePlayers === 1 ? 'Player' : 'Players'}
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)'
+                }}
+              >
+                {onlineCount} Online
               </span>
             </div>
           ) : (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              {isLive ? (isChecking ? 'Checking...' : '0 Lobbies | 0 Players') : 'Coming Soon'}
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.74rem',
+                color: 'var(--text-muted)'
+              }}
+            >
+              {isLive ? (isChecking ? 'Checking...' : '0 Lobbies | 0 Online') : 'Coming Soon'}
             </span>
           )}
         </div>
@@ -224,7 +260,7 @@ export const GameCard: React.FC<GameCardProps> = ({
           ) : (
             <>
               <Clock size={15} />
-              <span>Coming Soon — Preview</span>
+              <span>Coming Soon</span>
             </>
           )}
         </button>

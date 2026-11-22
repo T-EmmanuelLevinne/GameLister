@@ -22,16 +22,23 @@ export type GameStatus = 'LIVE' | 'COMING_SOON' | 'MAINTENANCE';
 
 export type GameId = 'gun-roulette' | 'wall-rush' | 'tribe-rush';
 
+export interface GameModeDetail {
+  name: string;
+  summary: string;
+}
+
 export interface GameCatalogEntry {
   id: GameId;
   order: number;
   name: string;
   tagline: string;
   description: string;
+  overview?: string;
   genre: string;
   playerRange: string;
   status: GameStatus;
   modes: string[];
+  modeDetails?: GameModeDetail[];
   frontendUrl: string | null;
   serverApiUrl: string | null;
   serverLabel: string;
@@ -46,6 +53,7 @@ export interface GameServerTelemetry {
   pingMs: number | null;
   activeLobbies: number;
   activePlayers: number;
+  onlinePlayers?: number;
   serverVersion?: string;
 }
 
