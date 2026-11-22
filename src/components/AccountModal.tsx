@@ -35,8 +35,67 @@ interface PlayedGameElo {
 const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
-const getTierInfo = (elo: number) => {
+const getTierInfo = (gameId: GameId, elo: number) => {
   const clamped = Math.max(0, Math.min(4000, elo));
+
+  if (gameId === 'gun-roulette') {
+    if (clamped >= 2600) {
+      return {
+        tierName: 'Godlike',
+        tierClass: 'is-godlike',
+        nextLabel: clamped >= 4000 ? '4000 Cap' : `${4000 - clamped} to 4000 Cap`,
+        progressPct: Math.min(100, ((clamped - 2600) / 1400) * 100)
+      };
+    }
+    if (clamped >= 2100) {
+      return {
+        tierName: 'Untouchable',
+        tierClass: 'is-untouchable',
+        nextLabel: `${2600 - clamped} to Godlike`,
+        progressPct: Math.min(100, ((clamped - 2100) / 500) * 100)
+      };
+    }
+    if (clamped >= 1800) {
+      return {
+        tierName: 'Deadeye',
+        tierClass: 'is-deadeye',
+        nextLabel: `${2100 - clamped} to Untouchable`,
+        progressPct: Math.min(100, ((clamped - 1800) / 300) * 100)
+      };
+    }
+    if (clamped >= 1500) {
+      return {
+        tierName: 'Gunslinger',
+        tierClass: 'is-gunslinger',
+        nextLabel: `${1800 - clamped} to Deadeye`,
+        progressPct: Math.min(100, ((clamped - 1500) / 300) * 100)
+      };
+    }
+    if (clamped >= 1200) {
+      return {
+        tierName: 'Gambler',
+        tierClass: 'is-gambler',
+        nextLabel: `${1500 - clamped} to Gunslinger`,
+        progressPct: Math.min(100, ((clamped - 1200) / 300) * 100)
+      };
+    }
+    if (clamped >= 1000) {
+      return {
+        tierName: 'Survivor',
+        tierClass: 'is-survivor',
+        nextLabel: `${1200 - clamped} to Gambler`,
+        progressPct: Math.min(100, ((clamped - 1000) / 200) * 100)
+      };
+    }
+    return {
+      tierName: 'Unranked',
+      tierClass: 'is-unranked',
+      nextLabel: `${1000 - clamped} to Survivor`,
+      progressPct: Math.min(100, (clamped / 1000) * 100)
+    };
+  }
+
+  // WallRush & standard Marble Games ladder
   if (clamped >= 3800) {
     return {
       tierName: 'Grandmaster',
@@ -668,7 +727,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 {playedGames.map((entry) => {
                   const total = entry.wins + entry.losses;
                   const winRate = total > 0 ? Math.round((entry.wins / total) * 100) : 0;
-                  const tier = getTierInfo(entry.elo);
+                  const tier = getTierInfo(entry.gameId, entry.elo);
 
                   return (
                     <div key={entry.gameId} className="acct-elo-item">

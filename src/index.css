@@ -4709,9 +4709,25 @@ input {
   border-radius: 9999px;
 }
 
-.acct-elo-tier.is-expert {
+.acct-elo-tier.is-expert,
+.acct-elo-tier.is-gambler {
   background: rgba(16, 185, 129, 0.14);
   color: #10B981;
+}
+
+.acct-elo-tier.is-survivor {
+  background: rgba(100, 116, 139, 0.16);
+  color: #94A3B8;
+}
+
+.acct-elo-tier.is-gunslinger {
+  background: rgba(217, 119, 6, 0.16);
+  color: #F59E0B;
+}
+
+.acct-elo-tier.is-deadeye {
+  background: rgba(2, 132, 199, 0.16);
+  color: #38BDF8;
 }
 
 .acct-elo-tier.is-master {
@@ -4719,9 +4735,15 @@ input {
   color: #8B5CF6;
 }
 
-.acct-elo-tier.is-grandmaster {
+.acct-elo-tier.is-grandmaster,
+.acct-elo-tier.is-untouchable {
   background: rgba(239, 68, 68, 0.15);
   color: #EF4444;
+}
+
+.acct-elo-tier.is-godlike {
+  background: rgba(245, 158, 11, 0.2);
+  color: #FBBF24;
 }
 
 .acct-elo-nums {
@@ -4766,11 +4788,25 @@ input {
   transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.acct-elo-fill.is-survivor {
+  background: #64748B;
+}
+
+.acct-elo-fill.is-gunslinger,
+.acct-elo-fill.is-godlike {
+  background: #F59E0B;
+}
+
+.acct-elo-fill.is-deadeye {
+  background: #0EA5E9;
+}
+
 .acct-elo-fill.is-master {
   background: #8B5CF6;
 }
 
-.acct-elo-fill.is-grandmaster {
+.acct-elo-fill.is-grandmaster,
+.acct-elo-fill.is-untouchable {
   background: #EF4444;
 }
 
