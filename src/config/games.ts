@@ -115,7 +115,7 @@ export const GAME_CATALOG: GameCatalogEntry[] = [
     genre: 'Open-World Survival',
     playerRange: '100 Players',
     status: 'LIVE',
-    modes: ['Open World', 'Tribes', 'Asia', 'Europe', 'Intl'],
+    modes: ['Open World', 'Tribes', 'Asia'],
     modeDetails: [
       {
         name: 'Open-World Forest Survival',
