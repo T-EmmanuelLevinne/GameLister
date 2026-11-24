@@ -153,7 +153,11 @@ export const GameListingsView: React.FC<GameListingsViewProps> = ({
 
     if (!game.frontendUrl) {
       const envVarHint =
-        game.id === 'wall-rush' ? 'VITE_WALLRUSH_URL' : 'VITE_GUN_ROULETTE_URL';
+        game.id === 'wall-rush'
+          ? 'VITE_WALLRUSH_URL'
+          : game.id === 'tribe-rush'
+            ? 'VITE_TRIBE_RUSH_URL'
+            : 'VITE_GUN_ROULETTE_URL';
       setNotice(
         `${game.name} launch URL is not configured yet. Set ${envVarHint} in GameLister environment variables.`
       );

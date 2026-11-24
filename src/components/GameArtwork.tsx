@@ -75,6 +75,25 @@ export const GameIcon: React.FC<{ gameId: GameId; size?: number }> = ({
     );
   }
 
+  if (gameId === 'tribe-rush') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+        style={{ flexShrink: 0, display: 'block' }}
+      >
+        <rect width="24" height="24" rx="5" fill="#0C2214" />
+        <circle cx="11" cy="12" r="5.5" fill="#10B981" stroke="#6EE7B7" strokeWidth="1.4" />
+        <circle cx="17.2" cy="8.6" r="2.1" fill="#34D399" stroke="#064E3B" strokeWidth="1" />
+        <circle cx="17.2" cy="15.4" r="2.1" fill="#34D399" stroke="#064E3B" strokeWidth="1" />
+        <circle cx="9.2" cy="10.2" r="1.4" fill="#ECFDF5" />
+      </svg>
+    );
+  }
+
   return <MarbleBrandMark size={size} />;
 };
 
@@ -202,41 +221,69 @@ export const GameArtwork: React.FC<{ gameId: GameId }> = ({ gameId }) => {
   }
 
   return (
-    <svg
-      width="100%"
-      height="100%"
-      viewBox="0 0 560 180"
-      preserveAspectRatio="xMidYMid slice"
-      fill="none"
-      aria-hidden="true"
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        background: '#09150E',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden'
+      }}
     >
-      <rect width="560" height="180" fill="#F4F4F5" />
-      {/* Clean geometric topographic lines */}
-      <path
-        d="M0 45H560 M0 90H560 M0 135H560 M70 0V180 M140 0V180 M210 0V180 M280 0V180 M350 0V180 M420 0V180 M490 0V180"
-        stroke="#E4E4E7"
-        strokeWidth="1"
-      />
-      {/* Flat tribal shield & diamond emblem */}
-      <polygon
-        points="280,24 336,56 322,126 280,156 238,126 224,56"
-        fill="#FFFFFF"
-        stroke="#27272A"
-        strokeWidth="2"
-      />
-      <polygon
-        points="280,44 316,66 306,116 280,136 254,116 244,66"
-        fill="#E4E4E7"
-        stroke="#52525B"
-        strokeWidth="1.5"
-      />
-      <path d="M280 56V124 M256 90H304" stroke="#09090B" strokeWidth="2.5" />
-      <circle cx="280" cy="90" r="10" fill="#09090B" />
-      <circle cx="280" cy="90" r="4" fill="#FFFFFF" />
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 560 180"
+        preserveAspectRatio="xMidYMid slice"
+        fill="none"
+        aria-hidden="true"
+      >
+        <rect width="560" height="180" fill="#09150E" />
+        {/* Subtle terrain grid */}
+        <path
+          d="M0 36H560 M0 72H560 M0 108H560 M0 144H560 M70 0V180 M140 0V180 M210 0V180 M280 0V180 M350 0V180 M420 0V180 M490 0V180"
+          stroke="#12281B"
+          strokeWidth="1"
+        />
+        {/* Corner tactical brackets */}
+        <path d="M18 32V18H32" stroke="#10B981" strokeWidth="2" />
+        <path d="M542 148V162H528" stroke="#10B981" strokeWidth="2" />
 
-      {/* Flank territory chevrons */}
-      <path d="M170 68L192 90L170 112" stroke="#A1A1AA" strokeWidth="2.5" />
-      <path d="M390 68L368 90L390 112" stroke="#A1A1AA" strokeWidth="2.5" />
-    </svg>
+        {/* Stylized forest canopies */}
+        <circle cx="122" cy="52" r="24" fill="#14532D" stroke="#22C55E" strokeOpacity="0.35" strokeWidth="2" />
+        <circle cx="144" cy="134" r="18" fill="#14532D" stroke="#22C55E" strokeOpacity="0.3" strokeWidth="2" />
+        <circle cx="436" cy="48" r="20" fill="#14532D" stroke="#22C55E" strokeOpacity="0.35" strokeWidth="2" />
+        <circle cx="418" cy="132" r="24" fill="#14532D" stroke="#22C55E" strokeOpacity="0.3" strokeWidth="2" />
+
+        {/* 20x20 Tribe Territory boundary ring */}
+        <rect
+          x="212"
+          y="24"
+          width="136"
+          height="132"
+          rx="16"
+          fill="#0F291A"
+          stroke="#10B981"
+          strokeWidth="2"
+          strokeDasharray="6 4"
+        />
+
+        {/* Carved wooden stronghold wall segments */}
+        <rect x="234" y="38" width="92" height="9" rx="4.5" fill="#8B5A2E" stroke="#43250F" strokeWidth="2" />
+        <rect x="234" y="133" width="92" height="9" rx="4.5" fill="#8B5A2E" stroke="#43250F" strokeWidth="2" />
+
+        {/* Central Survivor Marble with two expressive hands */}
+        <circle cx="303" cy="76" r="8" fill="#34D399" stroke="#064E3B" strokeWidth="2.5" />
+        <circle cx="303" cy="104" r="8" fill="#34D399" stroke="#064E3B" strokeWidth="2.5" />
+        <circle cx="280" cy="90" r="22" fill="#10B981" stroke="#6EE7B7" strokeWidth="2.5" />
+        <ellipse cx="272" cy="82" rx="6" ry="3.8" transform="rotate(-28 272 82)" fill="#ECFDF5" />
+
+        {/* Amber Tribe Totem accent beacon */}
+        <circle cx="242" cy="90" r="7" fill="#F59E0B" stroke="#FEF08A" strokeWidth="2" />
+      </svg>
+    </div>
   );
 };

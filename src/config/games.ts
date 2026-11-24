@@ -29,6 +29,14 @@ const defaultWallRushApi = import.meta.env.PROD
   ? null
   : `http://${getLocalHost()}:3003`;
 
+const defaultTribeRushUrl = import.meta.env.PROD
+  ? null
+  : `http://${getLocalHost()}:5176`;
+
+const defaultTribeRushApi = import.meta.env.PROD
+  ? null
+  : `http://${getLocalHost()}:3004`;
+
 /**
  * Declarative Game Registry for Marble Games.
  * Each game connects to its own isolated dedicated server to prevent backend bloat.
@@ -100,19 +108,29 @@ export const GAME_CATALOG: GameCatalogEntry[] = [
     id: 'tribe-rush',
     order: 3,
     name: 'Tribe Rush',
-    tagline: 'Upcoming multiplayer strategy',
-    description: 'A new multiplayer strategy title is currently in the works.',
+    tagline: 'Open-world marble survival',
+    description: 'Gather resources, craft gear, form 30-player Tribes, build 20x20 bases, and survive the night.',
     overview:
-      'Tribe Rush will run on its own dedicated server with independent rankings while automatically using your Marble Games account.',
-    genre: 'Multiplayer Strategy',
-    playerRange: 'TBA',
-    status: 'COMING_SOON',
-    modes: ['Coming Soon'],
-    frontendUrl: cleanUrl(import.meta.env.VITE_TRIBE_RUSH_URL),
-    serverApiUrl: cleanUrl(import.meta.env.VITE_TRIBE_RUSH_API_URL),
-    serverLabel: 'Dedicated Server Pending',
-    accentColor: '#52525B',
-    accentBg: '#F4F4F5',
-    accentBorder: '#D4D4D8'
+      'An open-world marble survival game set in a massive 25600x25600 forest. Harvest wood, stone, coal, and berries, craft weapons and backpacks, build Tribe Totem strongholds, and survive across 100-player regional servers.',
+    genre: 'Open-World Survival',
+    playerRange: '100 Players',
+    status: 'LIVE',
+    modes: ['Open World', 'Tribes', 'Asia', 'Europe', 'Intl'],
+    modeDetails: [
+      {
+        name: 'Open-World Forest Survival',
+        summary: 'Explore a 25600x25600 world with dynamic day/night cycles, wildlife, crafting, backpacks, and full PvP combat.'
+      },
+      {
+        name: 'Tribes & 20x20 Base Building',
+        summary: 'Create up to 30-player Tribes, claim territory with a Tribe Totem, build walls/huts/watchtowers, and pack your base with Blueprints.'
+      }
+    ],
+    frontendUrl: cleanUrl(import.meta.env.VITE_TRIBE_RUSH_URL) ?? defaultTribeRushUrl,
+    serverApiUrl: cleanUrl(import.meta.env.VITE_TRIBE_RUSH_API_URL) ?? defaultTribeRushApi,
+    serverLabel: 'Regional World Server',
+    accentColor: '#10B981',
+    accentBg: '#ECFDF5',
+    accentBorder: '#A7F3D0'
   }
 ];

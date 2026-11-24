@@ -197,7 +197,9 @@ export const GameCard: React.FC<GameCardProps> = ({
               color: 'var(--text-primary)'
             }}
           >
-            {perGameRating ? (
+            {game.id === 'tribe-rush' ? (
+              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Open-World Survival</span>
+            ) : perGameRating ? (
               <span>
                 ELO {perGameRating.elo} · {winRate}% WR
               </span>
