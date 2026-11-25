@@ -208,7 +208,35 @@ export const GameCard: React.FC<GameCardProps> = ({
             )}
           </div>
 
-          {isLive && telemetry && !telemetry.checking && telemetry.online ? (
+          {game.id === 'tribe-rush' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  color: '#047857'
+                }}
+              >
+                Asia Early Access
+              </span>
+              {isLive && telemetry && !telemetry.checking && telemetry.online && onlineCount > 0 && (
+                <>
+                  <span style={{ color: 'var(--border-strong)' }}>|</span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)'
+                    }}
+                  >
+                    {onlineCount} Online
+                  </span>
+                </>
+              )}
+            </div>
+          ) : isLive && telemetry && !telemetry.checking && telemetry.online ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span
                 style={{
